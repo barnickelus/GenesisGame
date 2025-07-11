@@ -17,7 +17,7 @@
 <canvas id="game"></canvas>
 <div id="hud">Mass: <span id="mass">10</span> Score: <span id="score">0</span> Level: <span id="level">1</span></div>
 <div id="effBar"><div id="effFill"></div></div>
-<audio id="backgroundMusic" loop autoplay>
+<audio id="backgroundMusic" loop>
   <source src="https://barnickelus.github.io/GenesisGame/background-music.mp3" type="audio/mpeg">
 </audio>
 <script>
@@ -121,6 +121,12 @@ function update(){
   requestAnimationFrame(update);
 }
 update();
+document.body.addEventListener('click', () => {
+  const bgm = document.getElementById('backgroundMusic');
+  if (bgm && bgm.paused) {
+    bgm.play();
+  }
+}, { once: true });
 </script>
 </body>
 </html>
