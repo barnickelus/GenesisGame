@@ -2,199 +2,290 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Genesis Evolution 3D</title>
+<title>Genesis Evolution — Enhanced Edition</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <style>
-    body { margin: 0; overflow: hidden; background: #060616; font-family: "Inter", Arial, sans-serif; touch-action: none; }
-    #hud { position: fixed; top: 14px; left: 18px; color: #fff; font-size: 15px; text-shadow: 0 0 4px rgba(255,255,255,.3); z-index: 2; pointer-events: none; }
-    #instructions { position: fixed; bottom: 14px; width: 100%; text-align: center; color: #aaa; font-size: 12px; pointer-events: none; }
+    html, body { margin: 0; height: 100%; background: #060616; overflow: hidden; font-family: "Inter", Arial, sans-serif; }
+    canvas { width: 100%; height: 100%; display: block; touch-action: none; background: radial-gradient(circle at center, #32005a 0%, #000 85%); }
+    
+    /* UI Overlays */
+    #hud { position: fixed; top: 14px; left: 18px; color: #fff; font-size: 16px; font-weight: 600; text-shadow: 0 2px 4px rgba(0,0,0,0.8); z-index: 2; pointer-events: none; }
+    #compass { position: fixed; top: 60px; left: 18px; color: #aaa; font-size: 12px; line-height: 14px; letter-spacing: 1px; text-shadow: 0 1px 2px #000; z-index: 2; pointer-events: none; }
+    #effBar { position: fixed; bottom: 14px; left: 18px; width: 220px; height: 18px; border-radius: 9px; background: rgba(255,255,255,.12); z-index: 2; box-shadow: 0 0 10px rgba(0,0,0,0.5); pointer-events: none; }
+    #effFill { width: 100%; height: 100%; border-radius: 9px; background: linear-gradient(90deg, #00e4b8, #00aaff); transition: width 0.2s linear; }
+    
+    /* Controls */
+    #pauseBtn { position: fixed; top: 14px; right: 18px; font-size: 24px; color: #fff; cursor: pointer; user-select: none; z-index: 2; text-shadow: 0 2px 4px rgba(0,0,0,0.8); transition: transform 0.1s; }
+    #pauseBtn:hover { transform: scale(1.1); }
+    #radarWrap { position: fixed; top: 58px; right: 18px; width: 80px; height: 80px; display: none; z-index: 2; }
+    #radar { width: 100%; height: 100%; border: 2px solid rgba(255,255,255,0.2); border-radius: 8px; background: rgba(0,0,0,.6); box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+    #zoomSlider { position: fixed; top: 180px; right: 2px; width: 100px; transform: rotate(-90deg); z-index: 2; cursor: pointer; }
+    
+    .hud-val { color: #00e4b8; font-weight: bold; }
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
+<canvas id="game"></canvas>
 
-<div id="hud">Mass: <span id="mass">10</span>&nbsp; Score: <span id="score">0</span></div>
-<div id="instructions">Click and hold to move. Eat yellow food. Avoid larger red foes.</div>
+<div id="hud">Mass: <span id="mass" class="hud-val">10</span>&nbsp;&nbsp; Score: <span id="score" class="hud-val">0</span>&nbsp;&nbsp; Lvl: <span id="level" class="hud-val">1</span></div>
+<div id="compass">N<br>E&nbsp;&nbsp;W<br>&nbsp;S</div>
+<div id="effBar"><div id="effFill"></div></div>
+<div id="pauseBtn">⏸︎</div>
+<div id="radarWrap"><canvas id="radar" width="80" height="80"></canvas></div>
+<input id="zoomSlider" type="range" min="0.5" max="2" step="0.01" value="1" title="Manual Zoom">
+<audio id="backgroundMusic" src="background-music.mp3" loop preload="auto"></audio>
 
 <script>
-/* === CONSTANTS & SETUP === */
-const W = window.innerWidth, H = window.innerHeight;
-const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x060616, 0.0008); // Gives the void depth
+/* === CONSTANTS & TUNABLES === */
+const MASS_THRESH=600, TITAN_LEVEL=10, TITAN_MAX=6, TITAN_RESPAWN_MS=20000;
+const SPECTRE_MAX=3, REAPER_MAX=3, C_RING_DIST=1600, RADAR_PADDING=6;
+const SPECTRE_SPEED_MS=6000, SPECTRE_SPEED_MULT=1.25;
+const MASS_SPEED_FACTOR = 0.0012, EXTRA_TAIL_PCT = 0.10, MAX_TAIL_DRAW = 60, SAFE_PLAYER_MASS = 70, BLINK_MS = 300;
 
-const camera = new THREE.PerspectiveCamera(50, W / H, 0.1, 10000);
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(W, H);
-document.body.appendChild(renderer.domElement);
+/* === CANVAS SETUP === */
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d", { alpha: false });
+let W, H;
+function resize() { W = canvas.width = innerWidth; H = canvas.height = innerHeight; }
+resize();
+addEventListener("resize", resize);
 
-/* === LIGHTING === */
-const ambientLight = new THREE.AmbientLight(0x222233);
-scene.add(ambientLight);
+/* === UI REFS === */
+let sliderZoom = 1;
+document.getElementById("zoomSlider").addEventListener("input", e => sliderZoom = parseFloat(e.target.value));
+let zoom = sliderZoom, targetZoom = sliderZoom;
 
-// A light that follows the player to create a glowing effect
-const playerLight = new THREE.PointLight(0x00e4b8, 1.5, 800);
-scene.add(playerLight);
-
-/* === MATERIALS & GEOMETRIES === */
-const sphereGeo = new THREE.SphereGeometry(1, 32, 32);
-const playerMat = new THREE.MeshStandardMaterial({ color: 0x00e4b8, emissive: 0x004433, roughness: 0.2 });
-const foodMat = new THREE.MeshStandardMaterial({ color: 0xffff00, emissive: 0x333300 });
-const foeMat = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0x440000 });
+const massEl = document.getElementById("mass"), scoreEl = document.getElementById("score"), levelEl = document.getElementById("level");
+const pauseBtn = document.getElementById("pauseBtn"), radarWrap = document.getElementById("radarWrap");
+const rctx = document.getElementById("radar").getContext("2d");
 
 /* === WORLD DATA === */
-let pMass = 10;
-let pRadius = 10;
-const player = new THREE.Mesh(sphereGeo, playerMat);
-player.scale.set(pRadius, pRadius, pRadius);
-scene.add(player);
+let player = { x: 0, y: 0, r: 15, mass: 10, tail: [], baseSpeed: 2.5, blink: 0, speedBoost: 0 };
+let target = { x: 0, y: 0, active: false };
+let offset = { x: 0, y: 0 }, targetOffset = { x: 0, y: 0 };
 
-const food = [];
-const foes = [];
+const food = [], foes = [], titans = [], spectres = [], reapers = [], beacons = [], floatingTexts = [];
+let pill = { x: 0, y: 0, r: 10, active: false, cd: 0 };
+let frenzy = false, F_TIME = 0, paused = false, radarActive = false;
+let titanTimer = 0, titanKill = 0, spectreKill = 0, level = 1;
+let keys = { w: false, a: false, s: false, d: false }; // Added Keyboard support
 
-// Recreating the "Tesseract" grid background in 3D
-const gridHelper = new THREE.GridHelper(4000, 50, 0x222222, 0x222222);
-gridHelper.position.y = -10; // Place slightly below the play plane
-scene.add(gridHelper);
-
-/* === UTILITIES & SPAWNERS === */
+/* === UTILITIES === */
 const rand = v => Math.random() * v - v / 2;
+const dist = (a, b, c, d) => Math.hypot(a - c, b - d);
+const onScreen = (x, y, r) => !(x + r < player.x - W / (2 * zoom) || x - r > player.x + W / (2 * zoom) || y + r < player.y - H / (2 * zoom) || y - r > player.y + H / (2 * zoom));
+const lerp = (a, b, t) => a + (b - a) * t;
 
-function spawnFood() {
-    const mesh = new THREE.Mesh(sphereGeo, foodMat);
-    mesh.position.set(rand(2000), 0, rand(2000));
-    const r = 6;
-    mesh.scale.set(r, r, r);
-    scene.add(mesh);
-    food.push({ mesh, r });
+/* === SPAWNERS === */
+function spawnFood() { while(food.length < 80) food.push({ x: rand(2000), y: rand(2000), r: 6 }); }
+function spawnFoe() { foes.push({ x: rand(2200), y: rand(2200), r: (player.mass >= MASS_THRESH ? 14 : 10) + Math.random() * 20 }); }
+function spawnTitan() { const a = Math.random() * Math.PI * 2, d = 700 + Math.random() * 500; titans.push({ x: player.x + Math.cos(a) * d, y: player.y + Math.sin(a) * d, r: 25 + Math.random() * 35, hop: 0 }); }
+function spawnSpectre() { const a = Math.random() * Math.PI * 2, d = 600 + Math.random() * 400; spectres.push({ x: player.x + Math.cos(a) * d, y: player.y + Math.sin(a) * d, r: 22 + Math.random() * 25, dash: 0 }); }
+function spawnReaper() { const a = Math.random() * Math.PI * 2, d = 800 + Math.random() * 600; reapers.push({ x: player.x + Math.cos(a) * d, y: player.y + Math.sin(a) * d, r: 38 + Math.random() * 28, charge: 0 }); }
+function spawnPill() { pill = { x: rand(1800), y: rand(1800), r: 10, active: true, cd: 0 }; }
+function addFloatingText(x, y, text, color) { floatingTexts.push({ x, y, text, color, life: 1, maxLife: 1 }); }
+
+/* INITIALIZE */
+spawnFood(); for(let i=0; i<12; i++) spawnFoe();
+["N","S","E","W"].forEach(d => { const p = { N: [0, -C_RING_DIST], S: [0, C_RING_DIST], E: [C_RING_DIST, 0], W: [-C_RING_DIST, 0] }[d]; beacons.push({ x: p[0], y: p[1], r: 18 }); });
+
+/* === INPUT === */
+const toWorld = e => ({ x: (e.clientX - offset.x) / zoom, y: (e.clientY - offset.y) / zoom });
+canvas.addEventListener("pointerdown", e => { if(!paused) { const p = toWorld(e); target.x = p.x; target.y = p.y; target.active = true; }});
+canvas.addEventListener("pointermove", e => { if(target.active && !paused) { const p = toWorld(e); target.x = p.x; target.y = p.y; }});
+canvas.addEventListener("pointerup", () => target.active = false);
+
+window.addEventListener("keydown", e => {
+    const k = e.key.toLowerCase();
+    if(keys.hasOwnProperty(k)) { keys[k] = true; target.active = false; } // Keyboard overrides mouse
+    if(k === 'p') pauseBtn.onclick();
+});
+window.addEventListener("keyup", e => {
+    const k = e.key.toLowerCase();
+    if(keys.hasOwnProperty(k)) keys[k] = false;
+});
+
+/* === PAUSE === */
+pauseBtn.onclick = () => {
+    paused = !paused; pauseBtn.textContent = paused ? "▶︎" : "⏸︎";
+    const a = document.getElementById("backgroundMusic");
+    if(a) paused ? a.pause() : a.play().catch(()=>{});
+};
+
+/* === OPTIMIZED DRAWING === */
+// Replaced shadowBlur with fast radial gradients to significantly boost FPS
+function fastGlow(x, y, r, cInner, cOuter, alpha) {
+    if (r * zoom < 0.8 || !onScreen(x, y, r * 1.5)) return;
+    ctx.globalAlpha = alpha;
+    let grad = ctx.createRadialGradient(x, y, r * 0.4, x, y, r * 1.5);
+    grad.addColorStop(0, cInner);
+    grad.addColorStop(1, cOuter);
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(x, y, r * 1.5, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
 }
 
-function spawnFoe() {
-    const mesh = new THREE.Mesh(sphereGeo, foeMat);
-    mesh.position.set(rand(2500), 0, rand(2500));
-    const r = 10 + Math.random() * 20;
-    mesh.scale.set(r, r, r);
-    scene.add(mesh);
-    foes.push({ mesh, r });
+function drawSimpleCircle(x, y, r, color, alpha) {
+    if (r * zoom < 0.8 || !onScreen(x, y, r)) return;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = color;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
 }
 
-// Initial Spawn
-for(let i=0; i<80; i++) spawnFood();
-for(let i=0; i<15; i++) spawnFoe();
-
-/* === INPUT (Raycasting to X-Z plane) === */
-const raycaster = new THREE.Raycaster();
-const mouse = new THREE.Vector2();
-const floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-let target = new THREE.Vector3();
-let isMoving = false;
-
-window.addEventListener('pointerdown', e => { isMoving = true; updateTarget(e); });
-window.addEventListener('pointermove', e => { if(isMoving) updateTarget(e); });
-window.addEventListener('pointerup', () => isMoving = false);
-
-function updateTarget(e) {
-    mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-    raycaster.setFromCamera(mouse, camera);
-    raycaster.ray.intersectPlane(floorPlane, target);
+function tesseract() {
+    const step = (zoom <= 0.8 ? 60 : 120), d = 6;
+    ctx.lineWidth = 1.2;
+    for(let z=0; z<d; z++) {
+        const s = 1 + z * 0.15, o = 0.8 - 0.12 * z;
+        ctx.strokeStyle = `rgba(34,34,34,${o})`;
+        for(let i=-5; i<=5; i++) for(let j=-5; j<=5; j++) {
+            const x = i * step * s, y = j * step * s;
+            if(!onScreen(x, y, step * s * 1.4)) continue;
+            // Draw grid box
+            ctx.beginPath(); ctx.rect(x, y, step * s, step * s); ctx.stroke();
+        }
+    }
 }
 
 /* === GAME LOOP === */
-const massEl = document.getElementById("mass");
-const scoreEl = document.getElementById("score");
-let lastTime = 0;
+let last = performance.now();
 
-function animate(time) {
-    requestAnimationFrame(animate);
-    const dt = time - lastTime || 16;
-    lastTime = time;
+function loop(ts) {
+    if(paused) { last = ts; return requestAnimationFrame(loop); }
+    const dt = (ts - last) || 16; last = ts;
 
-    /* Player Movement */
-    if (isMoving && target) {
-        const dir = new THREE.Vector3().subVectors(target, player.position);
-        dir.y = 0; // Keep movement on the X-Z plane
-        const dist = dir.length();
-        if (dist > 1) {
-            dir.normalize();
-            // Speed logic mapped from 2D
-            const speed = 2.5 * (1 + pMass * 0.0012) * (dt / 16);
-            player.position.add(dir.multiplyScalar(speed));
-        }
-    }
-
-    /* Mass Decay & Scaling */
-    pMass = Math.max(5, pMass - (0.000009 * pRadius * pRadius + 0.002) * dt);
-    pRadius = 10 + pMass / 15;
-    player.scale.set(pRadius, pRadius, pRadius);
-    playerLight.position.set(player.position.x, pRadius * 2, player.position.z);
-
-    /* Camera Follow & Auto-Zoom */
-    // Camera pulls back as you grow
-    const camOffsetZ = pRadius * 6 + 100;
-    const camOffsetY = pRadius * 8 + 150;
+    /* Smooth Camera & Auto-zoom */
+    let desiredZoom = Math.min(sliderZoom, Math.max(0.4, H / (player.r * 5)));
+    zoom = lerp(zoom, desiredZoom, 0.05); // Smooth zoom transition
     
-    // Smooth camera interpolation
-    camera.position.x += (player.position.x - camera.position.x) * 0.1;
-    camera.position.z += ((player.position.z + camOffsetZ) - camera.position.z) * 0.1;
-    camera.position.y += (camOffsetY - camera.position.y) * 0.1;
-    camera.lookAt(player.position);
+    ctx.setTransform(1, 0, 0, 1, 0, 0); 
+    ctx.clearRect(0, 0, W, H);
 
-    /* Food Collisions */
-    for (let i = food.length - 1; i >= 0; i--) {
-        const f = food[i];
-        const d = player.position.distanceTo(f.mesh.position);
-        if (d < pRadius + f.r) {
-            pMass += f.r;
-            scene.remove(f.mesh);
+    /* Movement Logic */
+    let dx = 0, dy = 0;
+    if (keys.w) dy -= 1; if (keys.s) dy += 1;
+    if (keys.a) dx -= 1; if (keys.d) dx += 1;
+    
+    if (dx !== 0 || dy !== 0) {
+        // Keyboard movement
+        const dLen = Math.hypot(dx, dy);
+        dx = dx / dLen; dy = dy / dLen;
+    } else if (target.active) {
+        // Mouse movement
+        dx = target.x - player.x; dy = target.y - player.y;
+        const dLen = Math.hypot(dx, dy);
+        if(dLen > 1) { dx = dx / dLen; dy = dy / dLen; } else { dx = 0; dy = 0; }
+    }
+
+    /* Apply Movement */
+    if(player.speedBoost > 0) player.speedBoost = Math.max(0, player.speedBoost - dt);
+    const sp = player.baseSpeed * (player.speedBoost > 0 ? SPECTRE_SPEED_MULT : 1) * (frenzy ? 1.3 : 1) * (1 + player.mass * MASS_SPEED_FACTOR);
+    player.x += dx * sp * (dt/16);
+    player.y += dy * sp * (dt/16);
+    
+    // Mass Decay
+    player.mass = Math.max(5, player.mass - (0.000009 * player.r * player.r + (player.mass < 150 ? 0.002 : 0.003)) * dt);
+
+    /* --- COLLISIONS & ENTITY LOGIC --- */
+    
+    // Food
+    for(let i = food.length - 1; i >= 0; i--) {
+        if(dist(player.x, player.y, food[i].x, food[i].y) < player.r + food[i].r) {
+            player.mass += food[i].r;
             food.splice(i, 1);
-            spawnFood(); // Immediately respawn
         }
     }
+    spawnFood();
 
-    /* Foe Logic & Collisions */
-    for (let i = foes.length - 1; i >= 0; i--) {
-        const foe = foes[i];
-        const d = player.position.distanceTo(foe.mesh.position);
-        
-        // Eat foe
-        if (pRadius > foe.r && d < pRadius) {
-            pMass += foe.r * 2.5;
-            scene.remove(foe.mesh);
-            foes.splice(i, 1);
-            spawnFoe();
-        } 
-        // Get eaten/damaged by foe
-        else if (foe.r > pRadius && d < foe.r) {
-            pMass = Math.max(5, pMass - 0.04 * dt);
+    // Foes
+    while(foes.length < (player.mass >= MASS_THRESH ? 18 : 12)) spawnFoe();
+    foes.forEach((o, i) => {
+        const d = dist(player.x, player.y, o.x, o.y);
+        if(player.r > o.r && d < player.r) { 
+            player.mass += o.r * 2.5; 
+            addFloatingText(o.x, o.y, `+${Math.round(o.r * 2.5)}`, "#00e4b8");
+            foes.splice(i, 1); return; 
         }
+        if(o.r > player.r && d < o.r) { 
+            if(player.blink < 50) player.blink = BLINK_MS; 
+            player.mass = Math.max(5, player.mass - 0.06 * dt); 
+        }
+        // AI
+        const c = 0.8 * (dt/16);
+        if(o.r < player.r && d < 300) { o.x -= (player.x - o.x) / d * c; o.y -= (player.y - o.y) / d * c; } // Flee
+        else if(o.r > player.r && d < 300) { o.x += (player.x - o.x) / d * c; o.y += (player.y - o.y) / d * c; } // Chase
+    });
 
-        // Basic Foe AI
-        if (d < 250) {
-            const dir = new THREE.Vector3().subVectors(player.position, foe.mesh.position);
-            dir.y = 0;
-            dir.normalize();
-            const moveAmt = 1.0 * (dt / 16);
-            if (foe.r > pRadius) foe.mesh.position.add(dir.multiplyScalar(moveAmt)); // Chase
-            else foe.mesh.position.sub(dir.multiplyScalar(moveAmt)); // Flee
-        }
+    /* Size, Tail, and Camera Update */
+    player.r = 10 + player.mass / 15; 
+    level = Math.floor(player.mass / 100) + 1;
+    
+    if(Math.random() < 0.3 || (dx !== 0 || dy !== 0)) {
+        player.tail.unshift({ x: player.x, y: player.y });
     }
+    while(player.tail.length > Math.ceil(player.mass / 3 * (1 + EXTRA_TAIL_PCT))) player.tail.pop();
+    if(player.blink > 0) player.blink -= dt;
 
-    /* HUD Updates */
-    massEl.textContent = pMass.toFixed(0);
-    scoreEl.textContent = Math.floor(pMass * 10);
+    // Smooth Camera Follow
+    targetOffset.x = W / 2 - player.x * zoom;
+    targetOffset.y = H / 2 - player.y * zoom;
+    offset.x = lerp(offset.x, targetOffset.x, 0.1);
+    offset.y = lerp(offset.y, targetOffset.y, 0.1);
+    
+    ctx.setTransform(zoom, 0, 0, zoom, offset.x, offset.y);
 
-    /* Render */
-    renderer.render(scene, camera);
+    /* --- DRAWING PHASE --- */
+    tesseract();
+    
+    // Draw Food (Fast)
+    food.forEach(f => drawSimpleCircle(f.x, f.y, f.r, f.frenzy ? f.col : "#ffff44", f.frenzy ? 0.9 : 0.7));
+    
+    // Draw Foes (Fast Glow)
+    foes.forEach(o => fastGlow(o.x, o.y, o.r, "rgba(255,50,50,1)", "rgba(255,0,0,0)", 0.8));
+    
+    // Draw Tail
+    const skip = Math.max(1, Math.ceil(player.tail.length / MAX_TAIL_DRAW));
+    for(let i = 0; i < player.tail.length; i += skip) {
+        const p = player.tail[i];
+        const tailRadius = player.r * (1 - i / player.tail.length);
+        drawSimpleCircle(p.x, p.y, tailRadius, `rgba(0, 228, 184, ${0.4 * (1 - i / player.tail.length)})`, 1);
+    }
+    
+    // Draw Player
+    let pColor = player.blink > 0 ? (player.blink % 150 < 75 ? "#ffffff" : "#ff4444") : "#00e4b8";
+    fastGlow(player.x, player.y, player.r, pColor, "rgba(0,228,184,0)", 1);
+    drawSimpleCircle(player.x, player.y, player.r, pColor, 1);
+
+    // Draw Floating Text
+    for(let i = floatingTexts.length - 1; i >= 0; i--) {
+        let ft = floatingTexts[i];
+        ft.life -= dt / 1000;
+        if(ft.life <= 0) { floatingTexts.splice(i, 1); continue; }
+        ft.y -= 20 * (dt/1000); // Float up
+        ctx.globalAlpha = ft.life / ft.maxLife;
+        ctx.fillStyle = ft.color;
+        ctx.font = `bold ${14/zoom}px Inter`;
+        ctx.textAlign = "center";
+        ctx.fillText(ft.text, ft.x, ft.y);
+    }
+    ctx.globalAlpha = 1;
+
+    /* --- UI UPDATES --- */
+    massEl.textContent = player.mass.toFixed(0);
+    scoreEl.textContent = Math.floor(player.mass * 10);
+    levelEl.textContent = level;
+
+    requestAnimationFrame(loop);
 }
-requestAnimationFrame(animate);
+requestAnimationFrame(loop);
 
-/* === RESIZE HANDLING === */
-window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-});
+/* Start audio on interaction */
+window.addEventListener("pointerdown", () => {
+    const a = document.getElementById("backgroundMusic");
+    if(a && a.paused) a.play().catch(()=>{});
+}, { once: true });
 </script>
 </body>
 </html>
