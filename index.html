@@ -2,24 +2,37 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Genesis Evolution - Prototype</title>
+<title>Genesis Evolution - Hybrid Prototype</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <style>
-    :root { --ui-color: #e0e0e0; --bg: #030308; --panel-bg: rgba(10, 10, 15, 0.85); }
-    body { margin: 0; overflow: hidden; background: var(--bg); font-family: "Inter", sans-serif; color: var(--ui-color); touch-action: none; user-select: none; }
-    canvas { display: block; }
+    :root { --ui-color: #e0e0e0; --panel-bg: rgba(10, 10, 15, 0.85); }
+    /* Original deep space background gradient */
+    body { margin: 0; overflow: hidden; background: radial-gradient(circle at center, #32005a 0%, #000 85%); font-family: "Inter", sans-serif; color: var(--ui-color); touch-action: none; user-select: none; }
     
-    /* HUD UI */
-    #hud { position: fixed; top: 20px; left: 20px; z-index: 10; pointer-events: none; }
-    .hud-title { font-size: 12px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.6; margin-bottom: 8px; }
+    /* 2D Background Canvas for Tesseract */
+    #bg-canvas { position: absolute; top: 0; left: 0; z-index: 0; pointer-events: none; }
+    
+    /* 3D WebGL Canvas */
+    #webgl-container { position: absolute; top: 0; left: 0; z-index: 1; pointer-events: none; }
+    
+    /* UI Overlay */
+    #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
+    
+    #hud { position: absolute; top: 20px; left: 20px; }
+    .hud-title { font-size: 12px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.6; margin-bottom: 8px; text-shadow: 0 0 4px #000; }
     #energy-container { width: 200px; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; position: relative; }
     #energy-bar { height: 100%; width: 50%; background: #fff; box-shadow: 0 0 10px #fff; transition: width 0.1s linear, background-color 0.5s, box-shadow 0.5s; }
-    #status { margin-top: 8px; font-size: 14px; font-weight: 300; opacity: 0.8; }
+    #status { margin-top: 8px; font-size: 14px; font-weight: 600; opacity: 0.9; text-shadow: 0 0 4px #000;}
 
-    /* Side Panel - Evolution Interface */
-    #side-panel { position: fixed; right: -350px; top: 0; width: 320px; height: 100%; background: var(--panel-bg); backdrop-filter: blur(10px); border-left: 1px solid rgba(255,255,255,0.1); transition: right 0.6s cubic-bezier(0.16, 1, 0.3, 1); z-index: 20; padding: 40px 20px; box-sizing: border-box; display: flex; flex-direction: column; }
+    /* Brought back Compass & Radar */
+    #compass { position: absolute; top: 80px; left: 20px; color: #aaa; font-size: 12px; line-height: 14px; letter-spacing: 1px; text-shadow: 0 1px 2px #000; }
+    #radarWrap { position: absolute; top: 20px; right: 20px; width: 80px; height: 80px; }
+    #radar { width: 100%; height: 100%; border: 2px solid rgba(255,255,255,0.2); border-radius: 8px; background: rgba(0,0,0,.6); box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+
+    /* Side Panel */
+    #side-panel { position: absolute; right: -350px; top: 0; width: 320px; height: 100%; background: var(--panel-bg); backdrop-filter: blur(10px); border-left: 1px solid rgba(255,255,255,0.1); transition: right 0.6s cubic-bezier(0.16, 1, 0.3, 1); padding: 40px 20px; box-sizing: border-box; display: flex; flex-direction: column; pointer-events: auto; }
     #side-panel.active { right: 0; }
     .panel-header { font-size: 18px; font-weight: 600; margin-bottom: 10px; letter-spacing: 1px; }
     .panel-desc { font-size: 13px; line-height: 1.6; opacity: 0.7; margin-bottom: 30px; }
@@ -29,53 +42,65 @@
     .evo-name { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
     .evo-stats { font-size: 11px; opacity: 0.6; line-height: 1.4; }
     
-    #instructions { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); font-size: 12px; opacity: 0.4; pointer-events: none; letter-spacing: 1px; }
+    #instructions { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); font-size: 12px; opacity: 0.4; letter-spacing: 1px; text-align: center;}
 </style>
 </head>
 <body>
 
-<div id="hud">
-    <div class="hud-title">System Energy</div>
-    <div id="energy-container"><div id="energy-bar"></div></div>
-    <div id="status">Form: Human Prototype</div>
-</div>
+<audio id="backgroundMusic" src="background-music.mp3" loop preload="auto"></audio>
 
-<div id="side-panel">
-    <div class="panel-header">Evolutionary Divergence</div>
-    <div class="panel-desc">Sufficient energy acquired. The environment demands adaptation. Choose your trajectory.</div>
-    <div id="choices-container"></div>
-</div>
+<canvas id="bg-canvas"></canvas>
 
-<div id="instructions">Click and drag to direct entity. Consume nodes to gather energy.</div>
+<div id="webgl-container"></div>
+
+<div id="ui-layer">
+    <div id="hud">
+        <div class="hud-title">System Energy</div>
+        <div id="energy-container"><div id="energy-bar"></div></div>
+        <div id="status">Form: Human Prototype</div>
+    </div>
+
+    <div id="compass">N<br>E&nbsp;&nbsp;W<br>&nbsp;S</div>
+    
+    <div id="radarWrap"><canvas id="radar" width="80" height="80"></canvas></div>
+
+    <div id="side-panel">
+        <div class="panel-header">Evolutionary Divergence</div>
+        <div class="panel-desc">Sufficient energy acquired. The environment demands adaptation. Choose your trajectory.</div>
+        <div id="choices-container"></div>
+    </div>
+
+    <div id="instructions">Click and drag to direct entity.<br>Consume nodes to gather energy.</div>
+</div>
 
 <script>
-/** * GENESIS EVOLUTION - PROTOTYPE ARCHITECTURE
- * Modular simulation of life, adaptation, and energy constraints.
+/** * GENESIS EVOLUTION - HYBRID PROTOTYPE
+ * Combines 3D Simulation Architecture with original 2D aesthetics.
  */
 
 /* =========================================
-   1. EVOLUTION & TRAITS MODULE
+   1. EVOLUTION & TRAITS
    ========================================= */
 const Evolutions = {
     human: {
-        id: 'human', name: 'Technological Apex', color: 0x00aaff,
+        id: 'human', name: 'Technological Apex', color: 0x00aaff, // Original blue
         stats: { speed: 1.5, baseDrain: 15, moveDrain: 25, gatherRate: 1.0 },
         desc: "Retain human characteristics. High control and speed, but highly inefficient energy consumption."
     },
     hybrid: {
-        id: 'hybrid', name: 'Symbiotic Hybrid', color: 0x00e4b8,
+        id: 'hybrid', name: 'Symbiotic Hybrid', color: 0x00e4b8, // Original neon teal
         stats: { speed: 1.0, baseDrain: 5, moveDrain: 10, gatherRate: 1.5 },
         desc: "Merge with the ecosystem. Balanced adaptability. Extremely energy efficient."
     },
     alien: {
-        id: 'alien', name: 'Deep Evolved', color: 0xff0055,
+        id: 'alien', name: 'Deep Evolved', color: 0xff39ff, // Original neon pink/magenta
         stats: { speed: 2.2, baseDrain: 20, moveDrain: 15, gatherRate: 2.5 },
         desc: "Abandon human form. Predatory, volatile. Massive energy intake, but bleeds energy rapidly at rest."
     }
 };
 
 /* =========================================
-   2. UI CONTROLLER
+   2. UI & VISUAL CONTROLLER (2D + Radar)
    ========================================= */
 class UIController {
     constructor() {
@@ -83,19 +108,33 @@ class UIController {
         this.status = document.getElementById('status');
         this.sidePanel = document.getElementById('side-panel');
         this.choicesContainer = document.getElementById('choices-container');
+        
+        // Setup 2D Background Canvas for Tesseract
+        this.bgCanvas = document.getElementById('bg-canvas');
+        this.bgCtx = this.bgCanvas.getContext('2d', { alpha: false });
+        
+        // Setup Radar
+        this.radarCanvas = document.getElementById('radar');
+        this.radarCtx = this.radarCanvas.getContext('2d');
+        
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+    }
+
+    resize() {
+        this.bgCanvas.width = window.innerWidth;
+        this.bgCanvas.height = window.innerHeight;
+        this.W = window.innerWidth;
+        this.H = window.innerHeight;
     }
 
     updateEnergy(current, max, colorHex) {
         const pct = Math.max(0, Math.min(100, (current / max) * 100));
         this.energyBar.style.width = `${pct}%`;
-        
-        // Reactive color/glow based on current evolution
         const color = `#${colorHex.toString(16).padStart(6, '0')}`;
         this.energyBar.style.backgroundColor = color;
         this.energyBar.style.boxShadow = `0 0 ${pct/5}px ${color}`;
-        
-        if (pct < 20) this.energyBar.style.opacity = (Math.sin(Date.now() * 0.01) + 1) / 2 + 0.2; // Pulse when low
-        else this.energyBar.style.opacity = 1;
+        this.status.style.color = color;
     }
 
     setStatus(text) { this.status.innerText = `Form: ${text}`; }
@@ -117,34 +156,88 @@ class UIController {
         });
         this.sidePanel.classList.add('active');
     }
+
+    // Ported from original game: The Tesseract Background
+    drawTesseract(playerX, playerZ, zoom) {
+        this.bgCtx.clearRect(0, 0, this.W, this.H);
+        this.bgCtx.save();
+        
+        // Map 3D player position to 2D background panning
+        const offsetX = this.W / 2 - (playerX * 12);
+        const offsetY = this.H / 2 - (playerZ * 12);
+        this.bgCtx.translate(offsetX, offsetY);
+
+        const step = 80 * zoom, d = 5;
+        this.bgCtx.lineWidth = 1.2;
+        
+        for(let z = 0; z < d; z++) {
+            const s = 1 + z * 0.15, o = 0.6 - 0.12 * z;
+            this.bgCtx.strokeStyle = `rgba(150, 80, 255, ${o * 0.4})`; // Tinted purple to match CSS background
+            
+            for(let i = -6; i <= 6; i++) {
+                for(let j = -6; j <= 6; j++) {
+                    const x = i * step * s, y = j * step * s;
+                    // Cull off-screen drawing for performance
+                    if (x + offsetX < -200 || x + offsetX > this.W + 200 || y + offsetY < -200 || y + offsetY > this.H + 200) continue;
+                    
+                    // Draw Cube projection
+                    this.bgCtx.beginPath(); this.bgCtx.rect(x, y, step * s, step * s); this.bgCtx.stroke();
+                    this.bgCtx.beginPath(); this.bgCtx.moveTo(x, y); this.bgCtx.lineTo(x - step*s*0.4, y - step*s*0.4); this.bgCtx.lineTo(x - step*s*0.4 + step*s, y - step*s*0.4); this.bgCtx.lineTo(x + step*s, y); this.bgCtx.stroke();
+                    this.bgCtx.beginPath(); this.bgCtx.moveTo(x + step*s, y); this.bgCtx.lineTo(x + step*s + step*s*0.4, y - step*s*0.4); this.bgCtx.lineTo(x + step*s + step*s*0.4 - step*s, y - step*s*0.4 + step*s); this.bgCtx.lineTo(x + step*s, y + step*s); this.bgCtx.stroke();
+                }
+            }
+        }
+        this.bgCtx.restore();
+    }
+
+    // Ported from original game: The Radar Minimap
+    drawRadar(player, ecosystem) {
+        this.radarCtx.clearRect(0, 0, 80, 80);
+        
+        // Draw crosshairs
+        this.radarCtx.strokeStyle = "rgba(255,255,255,0.15)";
+        this.radarCtx.lineWidth = 1;
+        this.radarCtx.beginPath(); this.radarCtx.moveTo(40, 0); this.radarCtx.lineTo(40, 80); this.radarCtx.moveTo(0, 40); this.radarCtx.lineTo(80, 40); this.radarCtx.stroke();
+        
+        // Draw Food
+        this.radarCtx.fillStyle = "rgba(255, 255, 255, 0.4)";
+        ecosystem.foodNodes.forEach(f => {
+            const dx = (f.position.x - player.mesh.position.x) * 0.4;
+            const dz = (f.position.z - player.mesh.position.z) * 0.4;
+            if (Math.abs(dx) < 38 && Math.abs(dz) < 38) {
+                this.radarCtx.fillRect(40 + dx, 40 + dz, 2, 2);
+            }
+        });
+
+        // Draw Player
+        this.radarCtx.fillStyle = `#${player.traits.color.toString(16).padStart(6, '0')}`;
+        this.radarCtx.beginPath(); this.radarCtx.arc(40, 40, 3, 0, Math.PI * 2); this.radarCtx.fill();
+    }
 }
 
 /* =========================================
-   3. ENTITY & ECOSYSTEM MODULE
+   3. ENTITY & ECOSYSTEM
    ========================================= */
 class Player {
     constructor(scene) {
         this.maxEnergy = 1000;
         this.energy = 300;
-        this.state = 'neutral'; // neutral, human, hybrid, alien
-        
-        // Default Stats
+        this.state = 'neutral';
         this.traits = { speed: 1.0, baseDrain: 8, moveDrain: 15, gatherRate: 1.0, color: 0xffffff };
         
-        // Visuals
         const geo = new THREE.SphereGeometry(1.5, 32, 32);
-        this.mat = new THREE.MeshStandardMaterial({ color: 0x222222, emissive: this.traits.color, emissiveIntensity: 1, roughness: 0.1 });
+        this.mat = new THREE.MeshStandardMaterial({ color: 0x111111, emissive: this.traits.color, emissiveIntensity: 1, roughness: 0.1 });
         this.mesh = new THREE.Mesh(geo, this.mat);
         scene.add(this.mesh);
 
         this.light = new THREE.PointLight(this.traits.color, 2, 100);
         this.mesh.add(this.light);
 
-        // Particle Trail (Simple implementation for low-power devices)
+        // Particle Trail
         this.trail = [];
         this.trailMat = new THREE.MeshBasicMaterial({ color: this.traits.color, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending });
-        const trailGeo = new THREE.SphereGeometry(0.4, 8, 8);
-        for(let i=0; i<20; i++) {
+        const trailGeo = new THREE.SphereGeometry(0.5, 8, 8);
+        for(let i=0; i<25; i++) {
             const t = new THREE.Mesh(trailGeo, this.trailMat);
             t.visible = false;
             scene.add(t);
@@ -156,28 +249,23 @@ class Player {
     evolve(evolutionData) {
         this.state = evolutionData.id;
         this.traits = { ...evolutionData.stats, color: evolutionData.color };
-        
-        // Update visuals
         this.mat.emissive.setHex(this.traits.color);
         this.light.color.setHex(this.traits.color);
         this.trailMat.color.setHex(this.traits.color);
     }
 
     update(dt, isMoving) {
-        // Energy Mechanics
         let drain = this.traits.baseDrain;
         if (isMoving) drain += this.traits.moveDrain;
         
         this.energy -= drain * dt;
         this.energy = Math.max(0, Math.min(this.energy, this.maxEnergy));
 
-        // Visual feedback based on energy
         const energyRatio = this.energy / this.maxEnergy;
         this.light.intensity = 1 + (energyRatio * 2);
         this.mat.emissiveIntensity = 0.5 + energyRatio;
 
-        // Particle Trailing
-        if (isMoving && Math.random() < 0.3) {
+        if (isMoving && Math.random() < 0.4) {
             const t = this.trail[this.trailIdx];
             t.position.copy(this.mesh.position);
             t.position.x += (Math.random() - 0.5);
@@ -187,10 +275,9 @@ class Player {
             this.trailIdx = (this.trailIdx + 1) % this.trail.length;
         }
 
-        // Shrink trail
         this.trail.forEach(t => {
             if (t.visible) {
-                t.scale.multiplyScalar(0.9);
+                t.scale.multiplyScalar(0.88);
                 if(t.scale.x < 0.1) t.visible = false;
             }
         });
@@ -201,18 +288,14 @@ class Ecosystem {
     constructor(scene) {
         this.scene = scene;
         this.foodNodes = [];
-        
-        // Use InstancedMesh for performance
-        this.foodGeo = new THREE.SphereGeometry(0.5, 8, 8);
-        this.foodMat = new THREE.MeshBasicMaterial({ color: 0xaaaaaa, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending });
-        
+        this.foodGeo = new THREE.SphereGeometry(0.6, 8, 8);
+        this.foodMat = new THREE.MeshBasicMaterial({ color: 0xffffaa, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending });
         for(let i=0; i<150; i++) this.spawnFood();
     }
 
     spawnFood() {
         const mesh = new THREE.Mesh(this.foodGeo, this.foodMat);
         mesh.position.set((Math.random() - 0.5) * 200, 0, (Math.random() - 0.5) * 200);
-        // Store base Y for hovering animation
         mesh.userData = { baseY: (Math.random() - 0.5) * 2, phase: Math.random() * Math.PI * 2 };
         this.scene.add(mesh);
         this.foodNodes.push(mesh);
@@ -222,23 +305,20 @@ class Ecosystem {
         const time = Date.now() * 0.002;
         for (let i = this.foodNodes.length - 1; i >= 0; i--) {
             const node = this.foodNodes[i];
-            
-            // Hover animation
             node.position.y = node.userData.baseY + Math.sin(time + node.userData.phase) * 1.5;
 
-            // Collision / Consumption
             if (player.mesh.position.distanceTo(node.position) < 3.0) {
                 player.energy += 40 * player.traits.gatherRate;
                 this.scene.remove(node);
                 this.foodNodes.splice(i, 1);
-                this.spawnFood(); // Respawn to keep ecosystem populated
+                this.spawnFood(); 
             }
         }
     }
 }
 
 /* =========================================
-   4. CORE ENGINE & RENDERER
+   4. CORE ENGINE
    ========================================= */
 class Simulation {
     constructor() {
@@ -261,21 +341,19 @@ class Simulation {
 
     initWebGL() {
         this.scene = new THREE.Scene();
-        this.scene.fog = new THREE.FogExp2(0x030308, 0.02);
+        // Removed Fog to let the 2D background show through cleanly
 
         this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
         this.camera.position.set(0, 40, 40);
         this.camera.lookAt(0, 0, 0);
 
-        this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
+        // Alpha: true is required to see the 2D CSS/Canvas background
+        this.renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: "high-performance" });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Cap pixel ratio for low-end
-        document.body.appendChild(this.renderer.domElement);
-
-        // Environment grid (Subtle)
-        const grid = new THREE.GridHelper(400, 100, 0x111122, 0x080811);
-        grid.position.y = -5;
-        this.scene.add(grid);
+        this.renderer.setClearColor(0x000000, 0); 
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        
+        document.getElementById('webgl-container').appendChild(this.renderer.domElement);
 
         window.addEventListener('resize', () => {
             this.camera.aspect = window.innerWidth / window.innerHeight;
@@ -296,13 +374,18 @@ class Simulation {
             raycaster.ray.intersectPlane(plane, this.targetPos);
         };
 
-        window.addEventListener('pointerdown', (e) => { this.isPointerDown = true; updateTarget(e); });
+        // Track clicks anywhere on window since UI layer is pointer-events: none
+        window.addEventListener('pointerdown', (e) => { 
+            this.isPointerDown = true; updateTarget(e); 
+            // Play audio on first interaction
+            const audio = document.getElementById("backgroundMusic");
+            if (audio && audio.paused) audio.play().catch(()=>{});
+        });
         window.addEventListener('pointermove', (e) => { if(this.isPointerDown) updateTarget(e); });
         window.addEventListener('pointerup', () => { this.isPointerDown = false; });
     }
 
     checkEvolutionTriggers() {
-        // Trigger evolution phase when player hoards enough energy
         if (!this.hasEvolved && this.player.energy > 800) {
             this.hasEvolved = true;
             this.ui.showEvolutionPanel((selectedEvo) => {
@@ -316,48 +399,44 @@ class Simulation {
         requestAnimationFrame(this.animate);
         const dt = this.clock.getDelta();
 
-        // Entity Movement Logic
         let moving = false;
         if (this.isPointerDown) {
             const dir = new THREE.Vector3().subVectors(this.targetPos, this.player.mesh.position);
-            dir.y = 0; // Keep on plane
+            dir.y = 0; 
             if (dir.length() > 0.5) {
                 moving = true;
                 dir.normalize();
-                // Speed scales with traits. Base speed mapping.
                 const speedMulti = 15 * this.player.traits.speed;
                 this.player.mesh.position.add(dir.multiplyScalar(speedMulti * dt));
             }
         }
 
-        // Run Systems
         this.player.update(dt, moving);
         this.ecosystem.update(dt, this.player);
         this.checkEvolutionTriggers();
 
-        // UI Updates
+        // Update UI, Radar, and Tesseract
         this.ui.updateEnergy(this.player.energy, this.player.maxEnergy, this.player.traits.color);
-
-        // Smooth Camera Follow
-        this.camera.position.x += (this.player.mesh.position.x - this.camera.position.x) * 0.05;
-        this.camera.position.z += (this.player.mesh.position.z + 40 - this.camera.position.z) * 0.05;
+        this.ui.drawRadar(this.player, this.ecosystem);
         
-        // Camera breathes/zooms based on form (Alien zooms out for perception, Hybrid stays close)
         let targetY = 40;
         if(this.player.state === 'alien') targetY = 55;
         if(this.player.state === 'hybrid') targetY = 30;
-        this.camera.position.y += (targetY - this.camera.position.y) * 0.02;
         
+        const zoomLevel = 40 / targetY; // Calculate relative zoom for tesseract
+        this.ui.drawTesseract(this.player.mesh.position.x, this.player.mesh.position.z, zoomLevel);
+
+        this.camera.position.x += (this.player.mesh.position.x - this.camera.position.x) * 0.05;
+        this.camera.position.z += (this.player.mesh.position.z + targetY - this.camera.position.z) * 0.05;
+        this.camera.position.y += (targetY - this.camera.position.y) * 0.02;
         this.camera.lookAt(this.player.mesh.position);
 
         this.renderer.render(this.scene, this.camera);
     }
 }
 
-// Boot the simulation
-window.onload = () => {
-    const sim = new Simulation();
-};
+// Boot
+window.onload = () => { const sim = new Simulation(); };
 </script>
 </body>
 </html>
