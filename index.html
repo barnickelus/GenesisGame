@@ -2,47 +2,47 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Genesis Evolution - Hybrid Prototype</title>
+<title>Genesis Evolution — The Living System</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <style>
-    :root { --ui-color: #e0e0e0; --panel-bg: rgba(10, 10, 15, 0.85); }
-    /* Original deep space background gradient */
-    body { margin: 0; overflow: hidden; background: radial-gradient(circle at center, #32005a 0%, #000 85%); font-family: "Inter", sans-serif; color: var(--ui-color); touch-action: none; user-select: none; }
+    :root { --ui-color: #f0f0f0; --panel-bg: rgba(5, 5, 10, 0.9); --neon-purple: #9650ff; }
+    body { margin: 0; overflow: hidden; background: radial-gradient(circle at center, #1a0033 0%, #000 85%); font-family: "Inter", sans-serif; color: var(--ui-color); touch-action: none; user-select: none; }
     
-    /* 2D Background Canvas for Tesseract */
-    #bg-canvas { position: absolute; top: 0; left: 0; z-index: 0; pointer-events: none; }
-    
-    /* 3D WebGL Canvas */
-    #webgl-container { position: absolute; top: 0; left: 0; z-index: 1; pointer-events: none; }
-    
-    /* UI Overlay */
+    #bg-canvas { position: absolute; top: 0; left: 0; z-index: 0; pointer-events: none; opacity: 0.3; }
+    #webgl-container { position: absolute; top: 0; left: 0; z-index: 1; outline: none;}
     #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
     
+    /* HUD */
     #hud { position: absolute; top: 20px; left: 20px; }
-    .hud-title { font-size: 12px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.6; margin-bottom: 8px; text-shadow: 0 0 4px #000; }
-    #energy-container { width: 200px; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; position: relative; }
-    #energy-bar { height: 100%; width: 50%; background: #fff; box-shadow: 0 0 10px #fff; transition: width 0.1s linear, background-color 0.5s, box-shadow 0.5s; }
-    #status { margin-top: 8px; font-size: 14px; font-weight: 600; opacity: 0.9; text-shadow: 0 0 4px #000;}
+    .hud-title { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.6; margin-bottom: 6px; text-shadow: 0 0 4px #000; }
+    #energy-container { width: 220px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; position: relative; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
+    #energy-bar { height: 100%; width: 50%; background: #fff; transition: width 0.1s linear, background-color 0.4s; }
+    #status { margin-top: 8px; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; text-shadow: 0 0 4px #000;}
 
-    /* Brought back Compass & Radar */
-    #compass { position: absolute; top: 80px; left: 20px; color: #aaa; font-size: 12px; line-height: 14px; letter-spacing: 1px; text-shadow: 0 1px 2px #000; }
-    #radarWrap { position: absolute; top: 20px; right: 20px; width: 80px; height: 80px; }
-    #radar { width: 100%; height: 100%; border: 2px solid rgba(255,255,255,0.2); border-radius: 8px; background: rgba(0,0,0,.6); box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+    /* Game Over Overlay */
+    #game-over { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: none; flex-direction: column; align-items: center; justify-content: center; pointer-events: auto; z-index: 30; backdrop-filter: blur(5px); }
+    #game-over h1 { font-size: 48px; color: #ff3333; text-shadow: 0 0 20px #ff0000; margin-bottom: 10px; }
+    #game-over p { font-size: 16px; opacity: 0.8; margin-bottom: 30px; }
+    .restart-btn { background: none; border: 1px solid #fff; color: #fff; padding: 10px 30px; font-family: "Inter"; cursor: pointer; transition: all 0.3s; }
+    .restart-btn:hover { background: #fff; color: #000; box-shadow: 0 0 20px #fff; }
 
-    /* Side Panel */
-    #side-panel { position: absolute; right: -350px; top: 0; width: 320px; height: 100%; background: var(--panel-bg); backdrop-filter: blur(10px); border-left: 1px solid rgba(255,255,255,0.1); transition: right 0.6s cubic-bezier(0.16, 1, 0.3, 1); padding: 40px 20px; box-sizing: border-box; display: flex; flex-direction: column; pointer-events: auto; }
+    /* Visual Elements ported from initial iterations */
+    #compass { position: absolute; bottom: 20px; left: 20px; color: #888; font-size: 11px; line-height: 12px; letter-spacing: 2px; text-align: center; }
+    #radarWrap { position: absolute; top: 20px; right: 20px; width: 90px; height: 90px; }
+    #radar { width: 100%; height: 100%; border: 1px solid rgba(150, 80, 255, 0.3); border-radius: 50%; background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); }
+
+    /* Evolution Panel */
+    #side-panel { position: absolute; right: -380px; top: 0; width: 350px; height: 100%; background: var(--panel-bg); backdrop-filter: blur(15px); border-left: 1px solid rgba(150, 80, 255, 0.2); transition: right 0.8s cubic-bezier(0.16, 1, 0.3, 1); padding: 50px 30px; box-sizing: border-box; display: flex; flex-direction: column; pointer-events: auto; }
     #side-panel.active { right: 0; }
-    .panel-header { font-size: 18px; font-weight: 600; margin-bottom: 10px; letter-spacing: 1px; }
-    .panel-desc { font-size: 13px; line-height: 1.6; opacity: 0.7; margin-bottom: 30px; }
+    .panel-header { font-size: 20px; font-weight: 600; margin-bottom: 10px; letter-spacing: 1px; color: var(--neon-purple); text-shadow: 0 0 10px var(--neon-purple); }
+    .panel-desc { font-size: 13px; line-height: 1.6; opacity: 0.7; margin-bottom: 40px; }
     
-    .evo-choice { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); padding: 15px; margin-bottom: 15px; cursor: pointer; border-radius: 4px; transition: all 0.3s ease; }
-    .evo-choice:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.3); transform: translateX(-5px); }
-    .evo-name { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
-    .evo-stats { font-size: 11px; opacity: 0.6; line-height: 1.4; }
-    
-    #instructions { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); font-size: 12px; opacity: 0.4; letter-spacing: 1px; text-align: center;}
+    .evo-choice { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 20px; margin-bottom: 20px; cursor: pointer; border-radius: 4px; transition: all 0.3s ease; position: relative; overflow: hidden; }
+    .evo-choice:hover { background: rgba(150, 80, 255, 0.05); border-color: rgba(150, 80, 255, 0.3); transform: translateX(-5px); }
+    .evo-name { font-size: 15px; font-weight: 600; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+    .evo-desc { font-size: 12px; opacity: 0.6; line-height: 1.5; }
 </style>
 </head>
 <body>
@@ -50,57 +50,69 @@
 <audio id="backgroundMusic" src="background-music.mp3" loop preload="auto"></audio>
 
 <canvas id="bg-canvas"></canvas>
-
 <div id="webgl-container"></div>
 
 <div id="ui-layer">
-    <div id="hud">
-        <div class="hud-title">System Energy</div>
-        <div id="energy-container"><div id="energy-bar"></div></div>
-        <div id="status">Form: Human Prototype</div>
+    <div id="game-over">
+        <h1>SIMULATION TERMINATED</h1>
+        <p>Energy depleted. Critical system failure.</p>
+        <button class="restart-btn" onclick="location.reload()">REINITIALIZE</button>
     </div>
 
-    <div id="compass">N<br>E&nbsp;&nbsp;W<br>&nbsp;S</div>
+    <div id="hud">
+        <div class="hud-title">System Integrity</div>
+        <div id="energy-container"><div id="energy-bar"></div></div>
+        <div id="status">INITIATING...</div>
+    </div>
+
+    <div id="compass">N<br>E&nbsp;&nbsp;W<br>S</div>
     
-    <div id="radarWrap"><canvas id="radar" width="80" height="80"></canvas></div>
+    <div id="radarWrap"><canvas id="radar" width="90" height="90"></canvas></div>
 
     <div id="side-panel">
         <div class="panel-header">Evolutionary Divergence</div>
-        <div class="panel-desc">Sufficient energy acquired. The environment demands adaptation. Choose your trajectory.</div>
+        <div class="panel-desc">Threshold reached. Select next structural iteration. System resources will adapt to choice.</div>
         <div id="choices-container"></div>
     </div>
-
-    <div id="instructions">Click and drag to direct entity.<br>Consume nodes to gather energy.</div>
 </div>
 
 <script>
-/** * GENESIS EVOLUTION - HYBRID PROTOTYPE
- * Combines 3D Simulation Architecture with original 2D aesthetics.
+/** * GENESIS EVOLUTION — Gameplay Implementation
+ * Role: Lead Game Designer / Systems Architect
  */
 
 /* =========================================
-   1. EVOLUTION & TRAITS
+   1. GAME DESIGN DATA & BALANCING
    ========================================= */
-const Evolutions = {
-    human: {
-        id: 'human', name: 'Technological Apex', color: 0x00aaff, // Original blue
-        stats: { speed: 1.5, baseDrain: 15, moveDrain: 25, gatherRate: 1.0 },
-        desc: "Retain human characteristics. High control and speed, but highly inefficient energy consumption."
+const GAME_STATE = {
+    Human: {
+        id: 'human', name: 'Human Prototype', color: 0x00d9ff, // Cyan
+        stats: { speed: 18, baseDrain: 10, moveDrain: 15, gatherRate: 1.0, playerRadius: 1.8 },
+        ecology: { foodMax: 120, threatsMax: 5, defensivesMax: 8, threatSpawnRate: 0.05 },
+        desc: "Baseline iteration. High efficiency, moderate mobility. World is docile."
     },
-    hybrid: {
-        id: 'hybrid', name: 'Symbiotic Hybrid', color: 0x00e4b8, // Original neon teal
-        stats: { speed: 1.0, baseDrain: 5, moveDrain: 10, gatherRate: 1.5 },
-        desc: "Merge with the ecosystem. Balanced adaptability. Extremely energy efficient."
+    Hybrid: {
+        id: 'hybrid', name: 'Symbiotic Hybrid', color: 0x00ffaa, // Neon Teal
+        stats: { speed: 12, baseDrain: 5, moveDrain: 8, gatherRate: 1.8, playerRadius: 2.2 },
+        ecology: { foodMax: 150, threatsMax: 15, defensivesMax: 5, threatSpawnRate: 0.15 },
+        desc: "Merged structure. Extreme energy efficiency and gathering. Ecosystem awareness activated."
     },
-    alien: {
-        id: 'alien', name: 'Deep Evolved', color: 0xff39ff, // Original neon pink/magenta
-        stats: { speed: 2.2, baseDrain: 20, moveDrain: 15, gatherRate: 2.5 },
-        desc: "Abandon human form. Predatory, volatile. Massive energy intake, but bleeds energy rapidly at rest."
+    Alien: {
+        id: 'alien', name: 'Deep Evolved', color: 0xff00cc, // Magenta (from initial visual)
+        stats: { speed: 28, baseDrain: 25, moveDrain: 12, gatherRate: 3.0, playerRadius: 3.0 },
+        ecology: { foodMax: 60, threatsMax: 30, defensivesMax: 0, threatSpawnRate: 0.4 },
+        desc: "Predatory form. Massive speed, high gathering, but bleeds energy at rest. The world is hostile."
     }
 };
 
+const ENTITY_TYPES = {
+    FOOD: { color: 0xffff33, r: 0.6, energy: 40, emissive: 1.0 }, // Yellow (passive)
+    DEFENSIVE: { color: 0x33ff33, r: 1.2, energy: 100, emissive: 0.8 }, // Green (neutral)
+    THREAT: { color: 0xff3366, r: 2.5, energy: -250, emissive: 2.0 }, // Neon Red/Pink (hostile)
+};
+
 /* =========================================
-   2. UI & VISUAL CONTROLLER (2D + Radar)
+   2. UI & VISUALS MODULE
    ========================================= */
 class UIController {
     constructor() {
@@ -108,45 +120,54 @@ class UIController {
         this.status = document.getElementById('status');
         this.sidePanel = document.getElementById('side-panel');
         this.choicesContainer = document.getElementById('choices-container');
+        this.gameOverOverlay = document.getElementById('game-over');
         
-        // Setup 2D Background Canvas for Tesseract
         this.bgCanvas = document.getElementById('bg-canvas');
         this.bgCtx = this.bgCanvas.getContext('2d', { alpha: false });
-        
-        // Setup Radar
         this.radarCanvas = document.getElementById('radar');
         this.radarCtx = this.radarCanvas.getContext('2d');
+        
+        this.neonPurple = "#9650ff";
         
         this.resize();
         window.addEventListener('resize', () => this.resize());
     }
 
     resize() {
-        this.bgCanvas.width = window.innerWidth;
-        this.bgCanvas.height = window.innerHeight;
-        this.W = window.innerWidth;
-        this.H = window.innerHeight;
+        this.bgCanvas.width = window.innerWidth; this.bgCanvas.height = window.innerHeight;
+        this.W = window.innerWidth; this.H = window.innerHeight;
     }
 
-    updateEnergy(current, max, colorHex) {
-        const pct = Math.max(0, Math.min(100, (current / max) * 100));
+    updateHUD(player) {
+        // Energy Bar
+        const pct = Math.max(0, Math.min(100, (player.energy / player.maxEnergy) * 100));
         this.energyBar.style.width = `${pct}%`;
-        const color = `#${colorHex.toString(16).padStart(6, '0')}`;
+        const color = `#${player.traits.color.toString(16).padStart(6, '0')}`;
         this.energyBar.style.backgroundColor = color;
-        this.energyBar.style.boxShadow = `0 0 ${pct/5}px ${color}`;
+        this.energyBar.style.boxShadow = `0 0 ${pct/4}px ${color}`;
+        
+        // Critical Warning
+        if(pct < 20) this.energyBar.style.opacity = (Math.sin(Date.now()*0.01)+1)/2 * 0.5 + 0.5;
+        else this.energyBar.style.opacity = 1;
+
+        // Form Title
+        this.status.innerText = player.traits.name;
         this.status.style.color = color;
+        this.status.style.textShadow = `0 0 10px ${color}`;
     }
 
-    setStatus(text) { this.status.innerText = `Form: ${text}`; }
+    showGameOver() { this.gameOverOverlay.style.display = 'flex'; }
 
-    showEvolutionPanel(onSelect) {
+    showEvolutionPanel(currentId, onSelect) {
         this.choicesContainer.innerHTML = '';
-        Object.values(Evolutions).forEach(evo => {
+        Object.values(GAME_STATE).forEach(evo => {
+            if(evo.id === currentId) return; // Don't show current form
             const el = document.createElement('div');
             el.className = 'evo-choice';
+            const color = `#${evo.color.toString(16).padStart(6,'0')}`;
             el.innerHTML = `
-                <div class="evo-name" style="color: #${evo.color.toString(16).padStart(6,'0')}">${evo.name}</div>
-                <div class="evo-stats">${evo.desc}</div>
+                <div class="evo-name" style="color: ${color}; text-shadow: 0 0 10px ${color};">${evo.name}</div>
+                <div class="evo-desc">${evo.desc}</div>
             `;
             el.onclick = () => {
                 this.sidePanel.classList.remove('active');
@@ -157,127 +178,217 @@ class UIController {
         this.sidePanel.classList.add('active');
     }
 
-    // Ported from original game: The Tesseract Background
-    drawTesseract(playerX, playerZ, zoom) {
+    // Ported from previous iteration: Parallax Tesseract Grid
+    drawTesseract(playerPos, zoom) {
         this.bgCtx.clearRect(0, 0, this.W, this.H);
         this.bgCtx.save();
-        
-        // Map 3D player position to 2D background panning
-        const offsetX = this.W / 2 - (playerX * 12);
-        const offsetY = this.H / 2 - (playerZ * 12);
+        const offsetX = this.W / 2 - (playerPos.x * 5 * zoom);
+        const offsetY = this.H / 2 - (playerPos.z * 5 * zoom);
         this.bgCtx.translate(offsetX, offsetY);
-
-        const step = 80 * zoom, d = 5;
-        this.bgCtx.lineWidth = 1.2;
+        const step = 90 * zoom, d = 4;
+        this.bgCtx.lineWidth = 1.0;
         
         for(let z = 0; z < d; z++) {
-            const s = 1 + z * 0.15, o = 0.6 - 0.12 * z;
-            this.bgCtx.strokeStyle = `rgba(150, 80, 255, ${o * 0.4})`; // Tinted purple to match CSS background
+            const s = 1 + z * 0.2, o = 0.5 - z * 0.12;
+            this.bgCtx.strokeStyle = `rgba(150, 80, 255, ${o * 0.25})`; 
             
-            for(let i = -6; i <= 6; i++) {
-                for(let j = -6; j <= 6; j++) {
+            for(let i = -8; i <= 8; i++) {
+                for(let j = -8; j <= 8; j++) {
                     const x = i * step * s, y = j * step * s;
-                    // Cull off-screen drawing for performance
-                    if (x + offsetX < -200 || x + offsetX > this.W + 200 || y + offsetY < -200 || y + offsetY > this.H + 200) continue;
-                    
-                    // Draw Cube projection
+                    if (x + offsetX < - step*s || x + offsetX > this.W + step*s || y + offsetY < - step*s || y + offsetY > this.H + step*s) continue;
                     this.bgCtx.beginPath(); this.bgCtx.rect(x, y, step * s, step * s); this.bgCtx.stroke();
-                    this.bgCtx.beginPath(); this.bgCtx.moveTo(x, y); this.bgCtx.lineTo(x - step*s*0.4, y - step*s*0.4); this.bgCtx.lineTo(x - step*s*0.4 + step*s, y - step*s*0.4); this.bgCtx.lineTo(x + step*s, y); this.bgCtx.stroke();
-                    this.bgCtx.beginPath(); this.bgCtx.moveTo(x + step*s, y); this.bgCtx.lineTo(x + step*s + step*s*0.4, y - step*s*0.4); this.bgCtx.lineTo(x + step*s + step*s*0.4 - step*s, y - step*s*0.4 + step*s); this.bgCtx.lineTo(x + step*s, y + step*s); this.bgCtx.stroke();
                 }
             }
         }
         this.bgCtx.restore();
     }
 
-    // Ported from original game: The Radar Minimap
+    // Enhanced Radar showing threats and food
     drawRadar(player, ecosystem) {
-        this.radarCtx.clearRect(0, 0, 80, 80);
+        this.radarCtx.clearRect(0, 0, 90, 90);
         
-        // Draw crosshairs
-        this.radarCtx.strokeStyle = "rgba(255,255,255,0.15)";
-        this.radarCtx.lineWidth = 1;
-        this.radarCtx.beginPath(); this.radarCtx.moveTo(40, 0); this.radarCtx.lineTo(40, 80); this.radarCtx.moveTo(0, 40); this.radarCtx.lineTo(80, 40); this.radarCtx.stroke();
-        
-        // Draw Food
-        this.radarCtx.fillStyle = "rgba(255, 255, 255, 0.4)";
-        ecosystem.foodNodes.forEach(f => {
-            const dx = (f.position.x - player.mesh.position.x) * 0.4;
-            const dz = (f.position.z - player.mesh.position.z) * 0.4;
-            if (Math.abs(dx) < 38 && Math.abs(dz) < 38) {
-                this.radarCtx.fillRect(40 + dx, 40 + dz, 2, 2);
+        // Background ring (ported from initial)
+        this.radarCtx.strokeStyle = "rgba(150, 80, 255, 0.2)";
+        this.radarCtx.lineWidth = 2;
+        this.radarCtx.beginPath(); this.radarCtx.arc(45, 45, 43, 0, Math.PI*2); this.radarCtx.stroke();
+
+        this.radarCtx.fillStyle = "rgba(255, 255, 255, 0.2)";
+        ecosystem.entities.forEach(e => {
+            const dx = (e.mesh.position.x - player.mesh.position.x) * 0.45;
+            const dz = (e.mesh.position.z - player.mesh.position.z) * 0.45;
+            const distSq = dx*dx + dz*dz;
+            if (distSq < 40*40) { // Radar range
+                if (e.type === 'THREAT') this.radarCtx.fillStyle = "#ff3366";
+                else if (e.type === 'DEFENSIVE') this.radarCtx.fillStyle = "#33ff33";
+                else this.radarCtx.fillStyle = "rgba(255,255,50,0.5)"; // Food
+                this.radarCtx.fillRect(45 + dx, 45 + dz, 2, 2);
             }
         });
 
-        // Draw Player
-        this.radarCtx.fillStyle = `#${player.traits.color.toString(16).padStart(6, '0')}`;
-        this.radarCtx.beginPath(); this.radarCtx.arc(40, 40, 3, 0, Math.PI * 2); this.radarCtx.fill();
+        // Player Dot (Blinks when low)
+        const pColor = `#${player.traits.color.toString(16).padStart(6, '0')}`;
+        this.radarCtx.fillStyle = pColor;
+        if(player.energy < 200 && Date.now() % 400 < 200) this.radarCtx.fillStyle = "#fff";
+        this.radarCtx.beginPath(); this.radarCtx.arc(45, 45, 3, 0, Math.PI * 2); this.radarCtx.fill();
     }
 }
 
 /* =========================================
    3. ENTITY & ECOSYSTEM
    ========================================= */
+class Entity {
+    constructor(type, scene) {
+        this.type = type;
+        const config = ENTITY_TYPES[type];
+        this.r = config.r;
+        this.energyVal = config.energy;
+        this.scene = scene;
+
+        // The inner core mesh
+        const geo = new THREE.SphereGeometry(this.r, 16, 16);
+        this.mat = new THREE.MeshStandardMaterial({ 
+            color: 0x000000, 
+            emissive: config.color, 
+            emissiveIntensity: config.emissive, 
+            roughness: 0.1 
+        });
+        this.mesh = new THREE.Mesh(geo, this.mat);
+        
+        // The outer glowing ring (Ported from initial iteration visual)
+        const glowGeo = new THREE.SphereGeometry(this.r * 1.5, 16, 16);
+        this.glowMat = new THREE.MeshBasicMaterial({
+            color: config.color,
+            transparent: true,
+            opacity: 0.2,
+            blending: THREE.AdditiveBlending,
+            side: THREE.BackSide // Shows only on outer edge
+        });
+        const glowMesh = new THREE.Mesh(glowGeo, this.glowMat);
+        this.mesh.add(glowMesh);
+
+        this.spawn();
+        scene.add(this.mesh);
+        
+        // AI parameters
+        this.velocity = new THREE.Vector3();
+        this. userData = { baseY: (Math.random() - 0.5) * 2, phase: Math.random() * Math.PI * 2 };
+    }
+
+    spawn() {
+        this.mesh.position.set((Math.random() - 0.5) * 250, 0, (Math.random() - 0.5) * 250);
+    }
+
+    update(dt, time, playerPos) {
+        // Floating animation
+        this.mesh.position.y = this.userData.baseY + Math.sin(time + this.userData.phase) * 1.0;
+
+        // Basic AI movement
+        if(this.type === 'THREAT') {
+            const dist = this.mesh.position.distanceTo(playerPos);
+            if(dist < 60) { // Aggression range
+                const dir = new THREE.Vector3().subVectors(playerPos, this.mesh.position).normalize();
+                this.velocity.lerp(dir.multiplyScalar(10), 0.02); // Move towards player
+                this.mesh.position.add(this.velocity.multiplyScalar(dt));
+                this.glowMat.opacity = 0.2 + (Math.sin(time*5)+1)*0.1; // Pulse glow actively
+            }
+        } else if (this.type === 'DEFENSIVE') {
+             const dist = this.mesh.position.distanceTo(playerPos);
+            if(dist < 30) { // Flee range
+                const dir = new THREE.Vector3().subVectors(this.mesh.position, playerPos).normalize();
+                this.mesh.position.add(dir.multiplyScalar(15 * dt)); // Flee from player
+            }
+        }
+    }
+}
+
 class Player {
     constructor(scene) {
         this.maxEnergy = 1000;
-        this.energy = 300;
-        this.state = 'neutral';
-        this.traits = { speed: 1.0, baseDrain: 8, moveDrain: 15, gatherRate: 1.0, color: 0xffffff };
+        this.energy = 500;
+        this.traits = GAME_STATE.Human;
+        this.isGameOver = false;
         
-        const geo = new THREE.SphereGeometry(1.5, 32, 32);
-        this.mat = new THREE.MeshStandardMaterial({ color: 0x111111, emissive: this.traits.color, emissiveIntensity: 1, roughness: 0.1 });
+        const r = this.traits.stats.playerRadius;
+        const geo = new THREE.SphereGeometry(r, 32, 32);
+        this.mat = new THREE.MeshStandardMaterial({ color: 0x050510, emissive: this.traits.color, emissiveIntensity: 1, roughness: 0.1 });
         this.mesh = new THREE.Mesh(geo, this.mat);
         scene.add(this.mesh);
 
-        this.light = new THREE.PointLight(this.traits.color, 2, 100);
+        this.light = new THREE.PointLight(this.traits.color, 2, 80);
         this.mesh.add(this.light);
+
+        // Core visual from initial iteration (Glow ring)
+        const glowGeo = new THREE.SphereGeometry(r * 2.0, 32, 32);
+        this.glowMat = new THREE.MeshBasicMaterial({
+            color: this.traits.color,
+            transparent: true,
+            opacity: 0.25,
+            blending: THREE.AdditiveBlending,
+            side: THREE.BackSide
+        });
+        this.glowMesh = new THREE.Mesh(glowGeo, this.glowMat);
+        this.mesh.add(this.glowMesh);
 
         // Particle Trail
         this.trail = [];
         this.trailMat = new THREE.MeshBasicMaterial({ color: this.traits.color, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending });
         const trailGeo = new THREE.SphereGeometry(0.5, 8, 8);
-        for(let i=0; i<25; i++) {
-            const t = new THREE.Mesh(trailGeo, this.trailMat);
-            t.visible = false;
-            scene.add(t);
-            this.trail.push(t);
+        for(let i=0; i<30; i++) {
+            const t = new THREE.Mesh(trailGeo, this.trailMat); t.visible = false; scene.add(t); this.trail.push(t);
         }
         this.trailIdx = 0;
     }
 
     evolve(evolutionData) {
-        this.state = evolutionData.id;
-        this.traits = { ...evolutionData.stats, color: evolutionData.color };
-        this.mat.emissive.setHex(this.traits.color);
-        this.light.color.setHex(this.traits.color);
-        this.trailMat.color.setHex(this.traits.color);
+        this.traits = evolutionData;
+        const newColor = this.traits.color;
+        const newR = this.traits.stats.playerRadius;
+        
+        // Dynamic Scaling
+        this.mesh.geometry = new THREE.SphereGeometry(newR, 32, 32);
+        this.glowMesh.geometry = new THREE.SphereGeometry(newR * 2.0, 32, 32);
+
+        // Color Updates
+        this.mat.emissive.setHex(newColor);
+        this.light.color.setHex(newColor);
+        this.glowMat.color.setHex(newColor);
+        this.trailMat.color.setHex(newColor);
     }
 
-    update(dt, isMoving) {
-        let drain = this.traits.baseDrain;
-        if (isMoving) drain += this.traits.moveDrain;
+    update(dt, time, isMoving) {
+        if(this.isGameOver) return;
+
+        // Energy Mechanics (Design core)
+        let drain = this.traits.stats.baseDrain;
+        if (isMoving) drain += this.traits.stats.moveDrain;
         
         this.energy -= drain * dt;
-        this.energy = Math.max(0, Math.min(this.energy, this.maxEnergy));
+        
+        // Critical State / Fail state
+        if (this.energy <= 0) {
+            this.energy = 0;
+            this.isGameOver = true;
+            return;
+        }
+        
+        this.energy = Math.min(this.energy, this.maxEnergy);
 
+        // Bioluminescent pulsing based on energy
         const energyRatio = this.energy / this.maxEnergy;
         this.light.intensity = 1 + (energyRatio * 2);
         this.mat.emissiveIntensity = 0.5 + energyRatio;
+        this.glowMat.opacity = 0.1 + energyRatio * 0.2;
 
-        if (isMoving && Math.random() < 0.4) {
+        // Trails
+        if (isMoving && Math.random() < 0.5) {
             const t = this.trail[this.trailIdx];
             t.position.copy(this.mesh.position);
-            t.position.x += (Math.random() - 0.5);
-            t.position.z += (Math.random() - 0.5);
-            t.scale.setScalar(1);
-            t.visible = true;
+            t.scale.setScalar(1); t.visible = true;
             this.trailIdx = (this.trailIdx + 1) % this.trail.length;
         }
-
         this.trail.forEach(t => {
             if (t.visible) {
-                t.scale.multiplyScalar(0.88);
+                t.scale.multiplyScalar(0.9);
                 if(t.scale.x < 0.1) t.visible = false;
             }
         });
@@ -287,31 +398,53 @@ class Player {
 class Ecosystem {
     constructor(scene) {
         this.scene = scene;
-        this.foodNodes = [];
-        this.foodGeo = new THREE.SphereGeometry(0.6, 8, 8);
-        this.foodMat = new THREE.MeshBasicMaterial({ color: 0xffffaa, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending });
-        for(let i=0; i<150; i++) this.spawnFood();
+        this.entities = [];
     }
 
-    spawnFood() {
-        const mesh = new THREE.Mesh(this.foodGeo, this.foodMat);
-        mesh.position.set((Math.random() - 0.5) * 200, 0, (Math.random() - 0.5) * 200);
-        mesh.userData = { baseY: (Math.random() - 0.5) * 2, phase: Math.random() * Math.PI * 2 };
-        this.scene.add(mesh);
-        this.foodNodes.push(mesh);
+    // Design Choice: Scale the ecosystem based on player evolution
+    rebalance(playerTraits) {
+        // Clear current non-player entities if needed (or just let them exist)
+        const ecology = playerTraits.ecology;
+
+        // Maintain counts
+        this.maintainCount('FOOD', ecology.foodMax);
+        this.maintainCount('DEFENSIVE', ecology.defensivesMax);
+        this.maintainCount('THREAT', ecology.threatMax);
     }
 
-    update(dt, player) {
-        const time = Date.now() * 0.002;
-        for (let i = this.foodNodes.length - 1; i >= 0; i--) {
-            const node = this.foodNodes[i];
-            node.position.y = node.userData.baseY + Math.sin(time + node.userData.phase) * 1.5;
+    maintainCount(type, max) {
+        const currentCount = this.entities.filter(e => e.type === type).length;
+        for(let i = currentCount; i < max; i++) {
+            this.entities.push(new Entity(type, this.scene));
+        }
+    }
 
-            if (player.mesh.position.distanceTo(node.position) < 3.0) {
-                player.energy += 40 * player.traits.gatherRate;
-                this.scene.remove(node);
-                this.foodNodes.splice(i, 1);
-                this.spawnFood(); 
+    update(dt, time, player) {
+        const pPos = player.mesh.position;
+        const pR = player.traits.stats.playerRadius;
+
+        for (let i = this.entities.length - 1; i >= 0; i--) {
+            const e = this.entities[i];
+            e.update(dt, time, pPos);
+
+            // Dynamic Collisions
+            const dist = pPos.distanceTo(e.mesh.position);
+            if (dist < pR + e.r) {
+                player.energy += e.energyVal;
+                
+                if(e.energyVal < 0) {
+                    // Interaction: Red flash on damage
+                    player.mat.emissive.setHex(0xff0000);
+                    setTimeout(()=>player.mat.emissive.setHex(player.traits.color), 100);
+                }
+
+                this.scene.remove(e.mesh);
+                this.entities.splice(i, 1);
+                
+                // Design: Respawn entities based on type probability
+                if(Math.random() < 0.8 || e.type === 'THREAT') {
+                    this.entities.push(new Entity(e.type, this.scene));
+                }
             }
         }
     }
@@ -327,10 +460,12 @@ class Simulation {
         
         this.player = new Player(this.scene);
         this.ecosystem = new Ecosystem(this.scene);
+        this.ecosystem.rebalance(this.player.traits); // Initial balance
         
         this.targetPos = new THREE.Vector3();
         this.isPointerDown = false;
-        this.hasEvolved = false;
+        this.evoAvailable = false;
+        this.level = 1;
 
         this.setupInputs();
         
@@ -341,14 +476,11 @@ class Simulation {
 
     initWebGL() {
         this.scene = new THREE.Scene();
-        // Removed Fog to let the 2D background show through cleanly
-
+        // Transparent WebGL background allows CSS purple gradient to show through
         this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-        this.camera.position.set(0, 40, 40);
-        this.camera.lookAt(0, 0, 0);
+        this.camera.position.set(0, 50, 50);
 
-        // Alpha: true is required to see the 2D CSS/Canvas background
-        this.renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: "high-performance" });
+        this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setClearColor(0x000000, 0); 
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -374,23 +506,29 @@ class Simulation {
             raycaster.ray.intersectPlane(plane, this.targetPos);
         };
 
-        // Track clicks anywhere on window since UI layer is pointer-events: none
         window.addEventListener('pointerdown', (e) => { 
-            this.isPointerDown = true; updateTarget(e); 
-            // Play audio on first interaction
+            // Audio starts on first click
             const audio = document.getElementById("backgroundMusic");
             if (audio && audio.paused) audio.play().catch(()=>{});
+            
+            if(this.player.isGameOver) return;
+            this.isPointerDown = true; updateTarget(e); 
         });
         window.addEventListener('pointermove', (e) => { if(this.isPointerDown) updateTarget(e); });
         window.addEventListener('pointerup', () => { this.isPointerDown = false; });
     }
 
-    checkEvolutionTriggers() {
-        if (!this.hasEvolved && this.player.energy > 800) {
-            this.hasEvolved = true;
-            this.ui.showEvolutionPanel((selectedEvo) => {
+    checkGameProgression() {
+        if(this.player.isGameOver) return;
+
+        // Evolution Design Trigger (Hoard Energy)
+        if (!this.evoAvailable && this.player.energy > 900) {
+            this.evoAvailable = true;
+            this.ui.showEvolutionPanel(this.player.traits.id, (selectedEvo) => {
                 this.player.evolve(selectedEvo);
-                this.ui.setStatus(selectedEvo.name);
+                this.ecosystem.rebalance(selectedEvo); // Adapt ecosystem immediately
+                this.evoAvailable = false;
+                this.level++;
             });
         }
     }
@@ -398,7 +536,14 @@ class Simulation {
     animate() {
         requestAnimationFrame(this.animate);
         const dt = this.clock.getDelta();
+        const time = performance.now() * 0.001;
 
+        if (this.player.isGameOver) {
+            this.ui.showGameOver();
+            return;
+        }
+
+        // Pointer Movement
         let moving = false;
         if (this.isPointerDown) {
             const dir = new THREE.Vector3().subVectors(this.targetPos, this.player.mesh.position);
@@ -406,36 +551,39 @@ class Simulation {
             if (dir.length() > 0.5) {
                 moving = true;
                 dir.normalize();
-                const speedMulti = 15 * this.player.traits.speed;
-                this.player.mesh.position.add(dir.multiplyScalar(speedMulti * dt));
+                const speed = this.player.traits.stats.speed;
+                this.player.mesh.position.add(dir.multiplyScalar(speed * dt));
             }
         }
 
-        this.player.update(dt, moving);
-        this.ecosystem.update(dt, this.player);
-        this.checkEvolutionTriggers();
+        // Update Systems
+        this.player.update(dt, time, moving);
+        this.ecosystem.update(dt, time, this.player);
+        this.checkGameProgression();
 
-        // Update UI, Radar, and Tesseract
-        this.ui.updateEnergy(this.player.energy, this.player.maxEnergy, this.player.traits.color);
+        // UI & 2D FX
+        this.ui.updateHUD(this.player);
         this.ui.drawRadar(this.player, this.ecosystem);
         
-        let targetY = 40;
-        if(this.player.state === 'alien') targetY = 55;
-        if(this.player.state === 'hybrid') targetY = 30;
-        
-        const zoomLevel = 40 / targetY; // Calculate relative zoom for tesseract
-        this.ui.drawTesseract(this.player.mesh.position.x, this.player.mesh.position.z, zoomLevel);
+        // Parallax depth based on evolution scale
+        const zoomFX = 5.0 / this.player.traits.stats.playerRadius; 
+        this.ui.drawTesseract(this.player.mesh.position, zoomFX);
 
+        // Visual design: Camera changes based on form (Alien zooms out, Hybrid close)
+        let camHeight = 50;
+        if(this.player.state === 'alien') camHeight = 70;
+        if(this.player.state === 'hybrid') camHeight = 35;
+        
         this.camera.position.x += (this.player.mesh.position.x - this.camera.position.x) * 0.05;
-        this.camera.position.z += (this.player.mesh.position.z + targetY - this.camera.position.z) * 0.05;
-        this.camera.position.y += (targetY - this.camera.position.y) * 0.02;
+        this.camera.position.z += (this.player.mesh.position.z + camHeight - this.camera.position.z) * 0.05;
+        this.camera.position.y += (camHeight - this.camera.position.y) * 0.02;
         this.camera.lookAt(this.player.mesh.position);
 
         this.renderer.render(this.scene, this.camera);
     }
 }
 
-// Boot
+// Reinitialize simulation
 window.onload = () => { const sim = new Simulation(); };
 </script>
 </body>
