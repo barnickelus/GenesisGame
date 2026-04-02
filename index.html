@@ -2,456 +2,324 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Genesis Evolution — The Living System</title>
+<title>Genesis Evolution — Cellular Phase</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <style>
-    :root { --ui-color: #f0f0f0; --panel-bg: rgba(5, 5, 10, 0.9); --neon-purple: #9650ff; }
-    body { margin: 0; overflow: hidden; background: radial-gradient(circle at center, #1a0033 0%, #000 85%); font-family: "Inter", sans-serif; color: var(--ui-color); touch-action: none; user-select: none; }
+    :root { --ui-color: #f0f0f0; --neon-cyan: #00f0ff; --neon-magenta: #ff0055; --neon-green: #39ff14; }
+    body { margin: 0; overflow: hidden; background: #000; font-family: "Inter", sans-serif; color: var(--ui-color); touch-action: none; user-select: none; }
     
-    #bg-canvas { position: absolute; top: 0; left: 0; z-index: 0; pointer-events: none; opacity: 0.3; }
+    #bg-canvas { position: absolute; top: 0; left: 0; z-index: 0; pointer-events: none; }
     #webgl-container { position: absolute; top: 0; left: 0; z-index: 1; outline: none;}
     #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
     
-    /* HUD */
+    /* Subtle HUD */
     #hud { position: absolute; top: 20px; left: 20px; }
-    .hud-title { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.6; margin-bottom: 6px; text-shadow: 0 0 4px #000; }
-    #energy-container { width: 220px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; position: relative; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
-    #energy-bar { height: 100%; width: 50%; background: #fff; transition: width 0.1s linear, background-color 0.4s; }
-    #status { margin-top: 8px; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; text-shadow: 0 0 4px #000;}
+    .hud-title { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; opacity: 0.5; margin-bottom: 6px; }
+    #mass-container { width: 200px; height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
+    #mass-bar { height: 100%; width: 5%; background: var(--neon-cyan); box-shadow: 0 0 10px var(--neon-cyan); transition: width 0.2s ease-out; }
+    #status { margin-top: 8px; font-size: 12px; font-weight: 300; letter-spacing: 2px; }
 
-    /* Game Over Overlay */
-    #game-over { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: none; flex-direction: column; align-items: center; justify-content: center; pointer-events: auto; z-index: 30; backdrop-filter: blur(5px); }
-    #game-over h1 { font-size: 48px; color: #ff3333; text-shadow: 0 0 20px #ff0000; margin-bottom: 10px; }
-    #game-over p { font-size: 16px; opacity: 0.8; margin-bottom: 30px; }
-    .restart-btn { background: none; border: 1px solid #fff; color: #fff; padding: 10px 30px; font-family: "Inter"; cursor: pointer; transition: all 0.3s; }
-    .restart-btn:hover { background: #fff; color: #000; box-shadow: 0 0 20px #fff; }
+    /* Unobtrusive Evolution Trigger */
+    #evo-trigger { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); padding: 12px 30px; background: rgba(0, 240, 255, 0.1); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); font-family: "Inter"; font-size: 12px; letter-spacing: 3px; cursor: pointer; border-radius: 4px; pointer-events: auto; display: none; text-shadow: 0 0 8px var(--neon-cyan); box-shadow: 0 0 15px rgba(0, 240, 255, 0.2); animation: pulse 2s infinite; transition: all 0.3s; }
+    #evo-trigger:hover { background: rgba(0, 240, 255, 0.2); transform: translateX(-50%) scale(1.05); }
 
-    /* Visual Elements ported from initial iterations */
-    #compass { position: absolute; bottom: 20px; left: 20px; color: #888; font-size: 11px; line-height: 12px; letter-spacing: 2px; text-align: center; }
-    #radarWrap { position: absolute; top: 20px; right: 20px; width: 90px; height: 90px; }
-    #radar { width: 100%; height: 100%; border: 1px solid rgba(150, 80, 255, 0.3); border-radius: 50%; background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); }
+    @keyframes pulse { 0% { box-shadow: 0 0 10px rgba(0,240,255,0.2); } 50% { box-shadow: 0 0 25px rgba(0,240,255,0.6); } 100% { box-shadow: 0 0 10px rgba(0,240,255,0.2); } }
 
-    /* Evolution Panel */
-    #side-panel { position: absolute; right: -380px; top: 0; width: 350px; height: 100%; background: var(--panel-bg); backdrop-filter: blur(15px); border-left: 1px solid rgba(150, 80, 255, 0.2); transition: right 0.8s cubic-bezier(0.16, 1, 0.3, 1); padding: 50px 30px; box-sizing: border-box; display: flex; flex-direction: column; pointer-events: auto; }
-    #side-panel.active { right: 0; }
-    .panel-header { font-size: 20px; font-weight: 600; margin-bottom: 10px; letter-spacing: 1px; color: var(--neon-purple); text-shadow: 0 0 10px var(--neon-purple); }
-    .panel-desc { font-size: 13px; line-height: 1.6; opacity: 0.7; margin-bottom: 40px; }
-    
-    .evo-choice { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 20px; margin-bottom: 20px; cursor: pointer; border-radius: 4px; transition: all 0.3s ease; position: relative; overflow: hidden; }
-    .evo-choice:hover { background: rgba(150, 80, 255, 0.05); border-color: rgba(150, 80, 255, 0.3); transform: translateX(-5px); }
-    .evo-name { font-size: 15px; font-weight: 600; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
-    .evo-desc { font-size: 12px; opacity: 0.6; line-height: 1.5; }
+    /* Center Modal for Evolution (Replaces Side Panel) */
+    #evo-modal { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); display: none; flex-direction: column; align-items: center; justify-content: center; pointer-events: auto; z-index: 20; opacity: 0; transition: opacity 0.4s; }
+    #evo-modal.active { display: flex; opacity: 1; }
+    .modal-header { font-size: 24px; font-weight: 300; letter-spacing: 4px; margin-bottom: 40px; text-transform: uppercase; }
+    .choices-grid { display: flex; gap: 20px; max-width: 900px; }
+    .evo-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); padding: 30px; border-radius: 8px; cursor: pointer; width: 250px; text-align: center; transition: all 0.3s; }
+    .evo-card:hover { background: rgba(255,255,255,0.08); transform: translateY(-10px); }
+    .evo-name { font-size: 16px; font-weight: 600; margin-bottom: 15px; letter-spacing: 2px; }
+    .evo-desc { font-size: 12px; opacity: 0.6; line-height: 1.6; }
+
+    #game-over { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; pointer-events: auto; z-index: 30; }
+    #game-over h1 { color: var(--neon-magenta); font-weight: 300; letter-spacing: 5px; }
+    button { background: none; border: 1px solid #fff; color: #fff; padding: 10px 30px; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; margin-top: 20px;}
+    button:hover { background: #fff; color: #000; }
 </style>
 </head>
 <body>
-
-<audio id="backgroundMusic" src="background-music.mp3" loop preload="auto"></audio>
 
 <canvas id="bg-canvas"></canvas>
 <div id="webgl-container"></div>
 
 <div id="ui-layer">
-    <div id="game-over">
-        <h1>SIMULATION TERMINATED</h1>
-        <p>Energy depleted. Critical system failure.</p>
-        <button class="restart-btn" onclick="location.reload()">REINITIALIZE</button>
-    </div>
-
     <div id="hud">
-        <div class="hud-title">System Integrity</div>
-        <div id="energy-container"><div id="energy-bar"></div></div>
-        <div id="status">INITIATING...</div>
+        <div class="hud-title">Biomass / Complexity</div>
+        <div id="mass-container"><div id="mass-bar"></div></div>
+        <div id="status">STAGE: ORGANIC BASELINE</div>
     </div>
 
-    <div id="compass">N<br>E&nbsp;&nbsp;W<br>S</div>
-    
-    <div id="radarWrap"><canvas id="radar" width="90" height="90"></canvas></div>
+    <button id="evo-trigger">EVOLUTION AVAILABLE</button>
 
-    <div id="side-panel">
-        <div class="panel-header">Evolutionary Divergence</div>
-        <div class="panel-desc">Threshold reached. Select next structural iteration. System resources will adapt to choice.</div>
-        <div id="choices-container"></div>
+    <div id="evo-modal">
+        <div class="modal-header">Select Genetic Mutation</div>
+        <div class="choices-grid" id="choices-container"></div>
+    </div>
+
+    <div id="game-over">
+        <h1>CELLULAR DEATH</h1>
+        <p style="opacity: 0.6; font-size: 14px;">Consumed by a larger entity.</p>
+        <button onclick="location.reload()">Reincarnate</button>
     </div>
 </div>
 
 <script>
-/** * GENESIS EVOLUTION — Gameplay Implementation
- * Role: Lead Game Designer / Systems Architect
+/** * GENESIS EVOLUTION — Cellular Phase
+ * Emphasizing organic growth, dynamic predator/prey AI, and unobtrusive UI.
  */
 
 /* =========================================
-   1. GAME DESIGN DATA & BALANCING
+   1. EVOLUTIONARY TRAITS
    ========================================= */
-const GAME_STATE = {
-    Human: {
-        id: 'human', name: 'Human Prototype', color: 0x00d9ff, // Cyan
-        stats: { speed: 18, baseDrain: 10, moveDrain: 15, gatherRate: 1.0, playerRadius: 1.8 },
-        ecology: { foodMax: 120, threatsMax: 5, defensivesMax: 8, threatSpawnRate: 0.05 },
-        desc: "Baseline iteration. High efficiency, moderate mobility. World is docile."
-    },
-    Hybrid: {
-        id: 'hybrid', name: 'Symbiotic Hybrid', color: 0x00ffaa, // Neon Teal
-        stats: { speed: 12, baseDrain: 5, moveDrain: 8, gatherRate: 1.8, playerRadius: 2.2 },
-        ecology: { foodMax: 150, threatsMax: 15, defensivesMax: 5, threatSpawnRate: 0.15 },
-        desc: "Merged structure. Extreme energy efficiency and gathering. Ecosystem awareness activated."
-    },
-    Alien: {
-        id: 'alien', name: 'Deep Evolved', color: 0xff00cc, // Magenta (from initial visual)
-        stats: { speed: 28, baseDrain: 25, moveDrain: 12, gatherRate: 3.0, playerRadius: 3.0 },
-        ecology: { foodMax: 60, threatsMax: 30, defensivesMax: 0, threatSpawnRate: 0.4 },
-        desc: "Predatory form. Massive speed, high gathering, but bleeds energy at rest. The world is hostile."
-    }
-};
-
-const ENTITY_TYPES = {
-    FOOD: { color: 0xffff33, r: 0.6, energy: 40, emissive: 1.0 }, // Yellow (passive)
-    DEFENSIVE: { color: 0x33ff33, r: 1.2, energy: 100, emissive: 0.8 }, // Green (neutral)
-    THREAT: { color: 0xff3366, r: 2.5, energy: -250, emissive: 2.0 }, // Neon Red/Pink (hostile)
+const TRAITS = {
+    Flagellum: { name: 'Ciliated Flagellum', color: 0x00f0ff, speed: 25, handling: 0.1, tailLengthMulti: 1.5, desc: "High mobility and agility. Tail structures multiply to allow rapid escape and hunting." },
+    Carapace: { name: 'Chitinous Shell', color: 0x39ff14, speed: 15, handling: 0.05, tailLengthMulti: 0.5, desc: "Slower, heavily armored. Can safely bounce off entities up to 20% larger without dying." },
+    Predator: { name: 'Predatory Maw', color: 0xff0055, speed: 20, handling: 0.08, tailLengthMulti: 1.0, desc: "Aggressive consumption. Can eat entities up to 5% larger than yourself." }
 };
 
 /* =========================================
-   2. UI & VISUALS MODULE
+   2. UI & GRID VISUALS (2D Canvas)
    ========================================= */
 class UIController {
     constructor() {
-        this.energyBar = document.getElementById('energy-bar');
-        this.status = document.getElementById('status');
-        this.sidePanel = document.getElementById('side-panel');
-        this.choicesContainer = document.getElementById('choices-container');
-        this.gameOverOverlay = document.getElementById('game-over');
-        
         this.bgCanvas = document.getElementById('bg-canvas');
-        this.bgCtx = this.bgCanvas.getContext('2d', { alpha: false });
-        this.radarCanvas = document.getElementById('radar');
-        this.radarCtx = this.radarCanvas.getContext('2d');
-        
-        this.neonPurple = "#9650ff";
+        this.ctx = this.bgCanvas.getContext('2d', { alpha: false });
+        this.massBar = document.getElementById('mass-bar');
+        this.status = document.getElementById('status');
+        this.evoTrigger = document.getElementById('evo-trigger');
+        this.evoModal = document.getElementById('evo-modal');
+        this.choicesContainer = document.getElementById('choices-container');
+        this.gameOver = document.getElementById('game-over');
         
         this.resize();
         window.addEventListener('resize', () => this.resize());
     }
 
     resize() {
-        this.bgCanvas.width = window.innerWidth; this.bgCanvas.height = window.innerHeight;
-        this.W = window.innerWidth; this.H = window.innerHeight;
+        this.bgCanvas.width = window.innerWidth;
+        this.bgCanvas.height = window.innerHeight;
     }
 
     updateHUD(player) {
-        // Energy Bar
-        const pct = Math.max(0, Math.min(100, (player.energy / player.maxEnergy) * 100));
-        this.energyBar.style.width = `${pct}%`;
+        // Mass scales exponentially, so we log it for the progress bar
+        const progress = Math.min(100, ((player.mass - 1) / (player.nextEvoMass - 1)) * 100);
+        this.massBar.style.width = `${Math.max(5, progress)}%`;
         const color = `#${player.traits.color.toString(16).padStart(6, '0')}`;
-        this.energyBar.style.backgroundColor = color;
-        this.energyBar.style.boxShadow = `0 0 ${pct/4}px ${color}`;
-        
-        // Critical Warning
-        if(pct < 20) this.energyBar.style.opacity = (Math.sin(Date.now()*0.01)+1)/2 * 0.5 + 0.5;
-        else this.energyBar.style.opacity = 1;
-
-        // Form Title
-        this.status.innerText = player.traits.name;
+        this.massBar.style.backgroundColor = color;
+        this.massBar.style.boxShadow = `0 0 10px ${color}`;
         this.status.style.color = color;
-        this.status.style.textShadow = `0 0 10px ${color}`;
     }
 
-    showGameOver() { this.gameOverOverlay.style.display = 'flex'; }
+    drawGrid(playerPos, cameraY) {
+        this.ctx.fillStyle = '#050505'; // Pure dark void
+        this.ctx.fillRect(0, 0, this.bgCanvas.width, this.bgCanvas.height);
+        
+        // Zoom affects grid scale
+        const zoom = 40 / cameraY; 
+        const gridSize = 100 * zoom;
+        
+        const offsetX = (this.bgCanvas.width / 2 - playerPos.x * 5 * zoom) % gridSize;
+        const offsetY = (this.bgCanvas.height / 2 - playerPos.z * 5 * zoom) % gridSize;
 
-    showEvolutionPanel(currentId, onSelect) {
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+        this.ctx.lineWidth = 1;
+
+        this.ctx.beginPath();
+        for (let x = offsetX - gridSize; x < this.bgCanvas.width; x += gridSize) {
+            this.ctx.moveTo(x, 0); this.ctx.lineTo(x, this.bgCanvas.height);
+        }
+        for (let y = offsetY - gridSize; y < this.bgCanvas.height; y += gridSize) {
+            this.ctx.moveTo(0, y); this.ctx.lineTo(this.bgCanvas.width, y);
+        }
+        this.ctx.stroke();
+    }
+
+    toggleEvoTrigger(show) { this.evoTrigger.style.display = show ? 'block' : 'none'; }
+    showGameOver() { this.gameOver.style.display = 'flex'; }
+
+    openEvolutionModal(onSelect) {
+        this.evoModal.classList.add('active');
         this.choicesContainer.innerHTML = '';
-        Object.values(GAME_STATE).forEach(evo => {
-            if(evo.id === currentId) return; // Don't show current form
+        Object.values(TRAITS).forEach(trait => {
             const el = document.createElement('div');
-            el.className = 'evo-choice';
-            const color = `#${evo.color.toString(16).padStart(6,'0')}`;
+            el.className = 'evo-card';
+            const hex = `#${trait.color.toString(16).padStart(6,'0')}`;
             el.innerHTML = `
-                <div class="evo-name" style="color: ${color}; text-shadow: 0 0 10px ${color};">${evo.name}</div>
-                <div class="evo-desc">${evo.desc}</div>
+                <div class="evo-name" style="color: ${hex}; text-shadow: 0 0 10px ${hex};">${trait.name}</div>
+                <div class="evo-desc">${trait.desc}</div>
             `;
             el.onclick = () => {
-                this.sidePanel.classList.remove('active');
-                onSelect(evo);
+                this.evoModal.classList.remove('active');
+                this.toggleEvoTrigger(false);
+                onSelect(trait);
             };
             this.choicesContainer.appendChild(el);
         });
-        this.sidePanel.classList.add('active');
-    }
-
-    // Ported from previous iteration: Parallax Tesseract Grid
-    drawTesseract(playerPos, zoom) {
-        this.bgCtx.clearRect(0, 0, this.W, this.H);
-        this.bgCtx.save();
-        const offsetX = this.W / 2 - (playerPos.x * 5 * zoom);
-        const offsetY = this.H / 2 - (playerPos.z * 5 * zoom);
-        this.bgCtx.translate(offsetX, offsetY);
-        const step = 90 * zoom, d = 4;
-        this.bgCtx.lineWidth = 1.0;
-        
-        for(let z = 0; z < d; z++) {
-            const s = 1 + z * 0.2, o = 0.5 - z * 0.12;
-            this.bgCtx.strokeStyle = `rgba(150, 80, 255, ${o * 0.25})`; 
-            
-            for(let i = -8; i <= 8; i++) {
-                for(let j = -8; j <= 8; j++) {
-                    const x = i * step * s, y = j * step * s;
-                    if (x + offsetX < - step*s || x + offsetX > this.W + step*s || y + offsetY < - step*s || y + offsetY > this.H + step*s) continue;
-                    this.bgCtx.beginPath(); this.bgCtx.rect(x, y, step * s, step * s); this.bgCtx.stroke();
-                }
-            }
-        }
-        this.bgCtx.restore();
-    }
-
-    // Enhanced Radar showing threats and food
-    drawRadar(player, ecosystem) {
-        this.radarCtx.clearRect(0, 0, 90, 90);
-        
-        // Background ring (ported from initial)
-        this.radarCtx.strokeStyle = "rgba(150, 80, 255, 0.2)";
-        this.radarCtx.lineWidth = 2;
-        this.radarCtx.beginPath(); this.radarCtx.arc(45, 45, 43, 0, Math.PI*2); this.radarCtx.stroke();
-
-        this.radarCtx.fillStyle = "rgba(255, 255, 255, 0.2)";
-        ecosystem.entities.forEach(e => {
-            const dx = (e.mesh.position.x - player.mesh.position.x) * 0.45;
-            const dz = (e.mesh.position.z - player.mesh.position.z) * 0.45;
-            const distSq = dx*dx + dz*dz;
-            if (distSq < 40*40) { // Radar range
-                if (e.type === 'THREAT') this.radarCtx.fillStyle = "#ff3366";
-                else if (e.type === 'DEFENSIVE') this.radarCtx.fillStyle = "#33ff33";
-                else this.radarCtx.fillStyle = "rgba(255,255,50,0.5)"; // Food
-                this.radarCtx.fillRect(45 + dx, 45 + dz, 2, 2);
-            }
-        });
-
-        // Player Dot (Blinks when low)
-        const pColor = `#${player.traits.color.toString(16).padStart(6, '0')}`;
-        this.radarCtx.fillStyle = pColor;
-        if(player.energy < 200 && Date.now() % 400 < 200) this.radarCtx.fillStyle = "#fff";
-        this.radarCtx.beginPath(); this.radarCtx.arc(45, 45, 3, 0, Math.PI * 2); this.radarCtx.fill();
     }
 }
 
 /* =========================================
-   3. ENTITY & ECOSYSTEM
+   3. ENTITY & DYNAMIC AI
    ========================================= */
 class Entity {
-    constructor(type, scene) {
-        this.type = type;
-        const config = ENTITY_TYPES[type];
-        this.r = config.r;
-        this.energyVal = config.energy;
+    constructor(scene, playerMass) {
         this.scene = scene;
+        // Spawn sizes relative to player so there is always food and always threats
+        this.mass = Math.max(0.2, playerMass * (0.3 + Math.random() * 1.5)); 
+        this.radius = Math.pow(this.mass, 0.5); // Area = mass
 
-        // The inner core mesh
-        const geo = new THREE.SphereGeometry(this.r, 16, 16);
-        this.mat = new THREE.MeshStandardMaterial({ 
-            color: 0x000000, 
-            emissive: config.color, 
-            emissiveIntensity: config.emissive, 
-            roughness: 0.1 
-        });
+        const geo = new THREE.SphereGeometry(this.radius, 16, 16);
+        this.mat = new THREE.MeshBasicMaterial({ color: 0x555555, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending });
         this.mesh = new THREE.Mesh(geo, this.mat);
         
-        // The outer glowing ring (Ported from initial iteration visual)
-        const glowGeo = new THREE.SphereGeometry(this.r * 1.5, 16, 16);
-        this.glowMat = new THREE.MeshBasicMaterial({
-            color: config.color,
-            transparent: true,
-            opacity: 0.2,
-            blending: THREE.AdditiveBlending,
-            side: THREE.BackSide // Shows only on outer edge
-        });
-        const glowMesh = new THREE.Mesh(glowGeo, this.glowMat);
-        this.mesh.add(glowMesh);
-
-        this.spawn();
+        // Spawn in a ring outside immediate view
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 50 + Math.random() * 100 * playerMass;
+        this.mesh.position.set(Math.cos(angle) * dist, 0, Math.sin(angle) * dist);
+        
         scene.add(this.mesh);
         
-        // AI parameters
-        this.velocity = new THREE.Vector3();
-        this. userData = { baseY: (Math.random() - 0.5) * 2, phase: Math.random() * Math.PI * 2 };
+        this.velocity = new THREE.Vector3((Math.random()-0.5), 0, (Math.random()-0.5)).normalize().multiplyScalar(5);
+        this.baseWander = Math.random() * 100;
     }
 
-    spawn() {
-        this.mesh.position.set((Math.random() - 0.5) * 250, 0, (Math.random() - 0.5) * 250);
-    }
+    update(dt, time, player) {
+        const dist = this.mesh.position.distanceTo(player.mesh.position);
+        const aggroRange = 40 * Math.max(1, Math.pow(player.mass, 0.3));
+        
+        // Behavior Algorithm Based on Size
+        if (dist < aggroRange) {
+            const dirToPlayer = new THREE.Vector3().subVectors(player.mesh.position, this.mesh.position).normalize();
+            
+            // Allow Predator trait to eat things slightly larger
+            const sizeAdvantage = player.traits.name === 'Predatory Maw' ? 1.05 : 1.0;
 
-    update(dt, time, playerPos) {
-        // Floating animation
-        this.mesh.position.y = this.userData.baseY + Math.sin(time + this.userData.phase) * 1.0;
-
-        // Basic AI movement
-        if(this.type === 'THREAT') {
-            const dist = this.mesh.position.distanceTo(playerPos);
-            if(dist < 60) { // Aggression range
-                const dir = new THREE.Vector3().subVectors(playerPos, this.mesh.position).normalize();
-                this.velocity.lerp(dir.multiplyScalar(10), 0.02); // Move towards player
-                this.mesh.position.add(this.velocity.multiplyScalar(dt));
-                this.glowMat.opacity = 0.2 + (Math.sin(time*5)+1)*0.1; // Pulse glow actively
+            if (this.mass > player.mass * sizeAdvantage) {
+                // I am larger -> HUNT
+                this.mat.color.setHex(0xff0055); // Danger Magenta
+                this.velocity.lerp(dirToPlayer.multiplyScalar(12), 0.05);
+            } else {
+                // I am smaller -> FLEE
+                this.mat.color.setHex(0x00f0ff); // Prey Cyan
+                this.velocity.lerp(dirToPlayer.multiplyScalar(-15), 0.08);
             }
-        } else if (this.type === 'DEFENSIVE') {
-             const dist = this.mesh.position.distanceTo(playerPos);
-            if(dist < 30) { // Flee range
-                const dir = new THREE.Vector3().subVectors(this.mesh.position, playerPos).normalize();
-                this.mesh.position.add(dir.multiplyScalar(15 * dt)); // Flee from player
-            }
+        } else {
+            // Idle wander
+            this.mat.color.setHex(0x55aa55); // Neutral Green
+            this.velocity.x += Math.sin(time + this.baseWander) * 0.1;
+            this.velocity.z += Math.cos(time + this.baseWander) * 0.1;
+            this.velocity.normalize().multiplyScalar(5); // Slow wander speed
         }
+
+        this.mesh.position.add(this.velocity.clone().multiplyScalar(dt));
     }
+
+    destroy() { this.scene.remove(this.mesh); }
 }
 
 class Player {
     constructor(scene) {
-        this.maxEnergy = 1000;
-        this.energy = 500;
-        this.traits = GAME_STATE.Human;
-        this.isGameOver = false;
+        this.scene = scene;
+        this.mass = 1.0;
+        this.nextEvoMass = 3.0; // Mass needed for first evolution
+        this.traits = { name: 'Organic Baseline', color: 0xffffff, speed: 18, handling: 0.08, tailLengthMulti: 1.0 };
+        this.isDead = false;
         
-        const r = this.traits.stats.playerRadius;
-        const geo = new THREE.SphereGeometry(r, 32, 32);
-        this.mat = new THREE.MeshStandardMaterial({ color: 0x050510, emissive: this.traits.color, emissiveIntensity: 1, roughness: 0.1 });
-        this.mesh = new THREE.Mesh(geo, this.mat);
+        this.mesh = new THREE.Mesh(
+            new THREE.SphereGeometry(1, 32, 32),
+            new THREE.MeshBasicMaterial({ color: this.traits.color, blending: THREE.AdditiveBlending })
+        );
         scene.add(this.mesh);
 
-        this.light = new THREE.PointLight(this.traits.color, 2, 80);
-        this.mesh.add(this.light);
+        // Core Bioluminescence
+        this.glow = new THREE.PointLight(this.traits.color, 2, 50);
+        this.mesh.add(this.glow);
 
-        // Core visual from initial iteration (Glow ring)
-        const glowGeo = new THREE.SphereGeometry(r * 2.0, 32, 32);
-        this.glowMat = new THREE.MeshBasicMaterial({
-            color: this.traits.color,
-            transparent: true,
-            opacity: 0.25,
-            blending: THREE.AdditiveBlending,
-            side: THREE.BackSide
-        });
-        this.glowMesh = new THREE.Mesh(glowGeo, this.glowMat);
-        this.mesh.add(this.glowMesh);
+        // Kinematic Tail System
+        this.history = [];
+        this.tailMeshes = [];
+        this.tailMat = new THREE.MeshBasicMaterial({ color: this.traits.color, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending });
+        this.updateTailStructure();
+    }
 
-        // Particle Trail
-        this.trail = [];
-        this.trailMat = new THREE.MeshBasicMaterial({ color: this.traits.color, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending });
-        const trailGeo = new THREE.SphereGeometry(0.5, 8, 8);
-        for(let i=0; i<30; i++) {
-            const t = new THREE.Mesh(trailGeo, this.trailMat); t.visible = false; scene.add(t); this.trail.push(t);
+    evolve(trait) {
+        this.traits = trait;
+        this.nextEvoMass = this.mass * 2.5; // Next threshold scales up
+        this.mesh.material.color.setHex(this.traits.color);
+        this.glow.color.setHex(this.traits.color);
+        this.tailMat.color.setHex(this.traits.color);
+        document.getElementById('status').innerText = `STAGE: ${this.traits.name.toUpperCase()}`;
+        this.updateTailStructure();
+    }
+
+    grow(consumedMass) {
+        this.mass += consumedMass * 0.2; // Gain a fraction of consumed mass
+        const newRadius = Math.pow(this.mass, 0.5);
+        
+        // Scale player mesh visually
+        this.mesh.scale.setScalar(newRadius);
+        this.glow.distance = 50 * newRadius;
+
+        this.updateTailStructure();
+    }
+
+    updateTailStructure() {
+        // Number of segments scales with mass and genetic trait
+        const desiredSegments = Math.floor(this.mass * 5 * this.traits.tailLengthMulti);
+        
+        while(this.tailMeshes.length < desiredSegments) {
+            const seg = new THREE.Mesh(new THREE.SphereGeometry(0.8, 16, 16), this.tailMat);
+            this.scene.add(seg);
+            this.tailMeshes.push(seg);
         }
-        this.trailIdx = 0;
-    }
-
-    evolve(evolutionData) {
-        this.traits = evolutionData;
-        const newColor = this.traits.color;
-        const newR = this.traits.stats.playerRadius;
-        
-        // Dynamic Scaling
-        this.mesh.geometry = new THREE.SphereGeometry(newR, 32, 32);
-        this.glowMesh.geometry = new THREE.SphereGeometry(newR * 2.0, 32, 32);
-
-        // Color Updates
-        this.mat.emissive.setHex(newColor);
-        this.light.color.setHex(newColor);
-        this.glowMat.color.setHex(newColor);
-        this.trailMat.color.setHex(newColor);
-    }
-
-    update(dt, time, isMoving) {
-        if(this.isGameOver) return;
-
-        // Energy Mechanics (Design core)
-        let drain = this.traits.stats.baseDrain;
-        if (isMoving) drain += this.traits.stats.moveDrain;
-        
-        this.energy -= drain * dt;
-        
-        // Critical State / Fail state
-        if (this.energy <= 0) {
-            this.energy = 0;
-            this.isGameOver = true;
-            return;
-        }
-        
-        this.energy = Math.min(this.energy, this.maxEnergy);
-
-        // Bioluminescent pulsing based on energy
-        const energyRatio = this.energy / this.maxEnergy;
-        this.light.intensity = 1 + (energyRatio * 2);
-        this.mat.emissiveIntensity = 0.5 + energyRatio;
-        this.glowMat.opacity = 0.1 + energyRatio * 0.2;
-
-        // Trails
-        if (isMoving && Math.random() < 0.5) {
-            const t = this.trail[this.trailIdx];
-            t.position.copy(this.mesh.position);
-            t.scale.setScalar(1); t.visible = true;
-            this.trailIdx = (this.trailIdx + 1) % this.trail.length;
-        }
-        this.trail.forEach(t => {
-            if (t.visible) {
-                t.scale.multiplyScalar(0.9);
-                if(t.scale.x < 0.1) t.visible = false;
-            }
-        });
-    }
-}
-
-class Ecosystem {
-    constructor(scene) {
-        this.scene = scene;
-        this.entities = [];
-    }
-
-    // Design Choice: Scale the ecosystem based on player evolution
-    rebalance(playerTraits) {
-        // Clear current non-player entities if needed (or just let them exist)
-        const ecology = playerTraits.ecology;
-
-        // Maintain counts
-        this.maintainCount('FOOD', ecology.foodMax);
-        this.maintainCount('DEFENSIVE', ecology.defensivesMax);
-        this.maintainCount('THREAT', ecology.threatMax);
-    }
-
-    maintainCount(type, max) {
-        const currentCount = this.entities.filter(e => e.type === type).length;
-        for(let i = currentCount; i < max; i++) {
-            this.entities.push(new Entity(type, this.scene));
+        // Remove excess if evolved into a shorter tail form
+        while(this.tailMeshes.length > desiredSegments) {
+            const seg = this.tailMeshes.pop();
+            this.scene.remove(seg);
         }
     }
 
-    update(dt, time, player) {
-        const pPos = player.mesh.position;
-        const pR = player.traits.stats.playerRadius;
+    update(dt, targetPos) {
+        if(this.isDead) return;
 
-        for (let i = this.entities.length - 1; i >= 0; i--) {
-            const e = this.entities[i];
-            e.update(dt, time, pPos);
+        // Fluid cellular movement
+        const dir = new THREE.Vector3().subVectors(targetPos, this.mesh.position);
+        dir.y = 0;
+        if(dir.length() > 0.5) {
+            // Larger mass = slightly slower top speed but higher momentum
+            const currentSpeed = this.traits.speed / Math.pow(this.mass, 0.2); 
+            this.mesh.position.lerp(targetPos, this.traits.handling);
+        }
 
-            // Dynamic Collisions
-            const dist = pPos.distanceTo(e.mesh.position);
-            if (dist < pR + e.r) {
-                player.energy += e.energyVal;
-                
-                if(e.energyVal < 0) {
-                    // Interaction: Red flash on damage
-                    player.mat.emissive.setHex(0xff0000);
-                    setTimeout(()=>player.mat.emissive.setHex(player.traits.color), 100);
-                }
+        // Record history for kinematic tail
+        this.history.unshift(this.mesh.position.clone());
+        if(this.history.length > this.tailMeshes.length * 3 + 1) {
+            this.history.pop();
+        }
 
-                this.scene.remove(e.mesh);
-                this.entities.splice(i, 1);
-                
-                // Design: Respawn entities based on type probability
-                if(Math.random() < 0.8 || e.type === 'THREAT') {
-                    this.entities.push(new Entity(e.type, this.scene));
-                }
+        // Update tail segments
+        const radius = Math.pow(this.mass, 0.5);
+        for(let i = 0; i < this.tailMeshes.length; i++) {
+            const historyIdx = i * 3; // spacing
+            if(this.history[historyIdx]) {
+                const seg = this.tailMeshes[i];
+                seg.position.lerp(this.history[historyIdx], 0.5);
+                // Tail tapers off at the end
+                const scale = radius * (1 - (i / this.tailMeshes.length)) * 0.8;
+                seg.scale.setScalar(Math.max(0.1, scale)); 
             }
         }
     }
 }
 
 /* =========================================
-   4. CORE ENGINE
+   4. SIMULATION ENGINE
    ========================================= */
 class Simulation {
     constructor() {
@@ -459,16 +327,24 @@ class Simulation {
         this.initWebGL();
         
         this.player = new Player(this.scene);
-        this.ecosystem = new Ecosystem(this.scene);
-        this.ecosystem.rebalance(this.player.traits); // Initial balance
-        
+        this.entities = [];
         this.targetPos = new THREE.Vector3();
         this.isPointerDown = false;
-        this.evoAvailable = false;
-        this.level = 1;
+        this.isPaused = false;
+        this.evoReady = false;
 
         this.setupInputs();
         
+        // UI Bindings
+        this.ui.evoTrigger.onclick = () => {
+            this.isPaused = true;
+            this.ui.openEvolutionModal((trait) => {
+                this.player.evolve(trait);
+                this.evoReady = false;
+                this.isPaused = false;
+            });
+        };
+
         this.clock = new THREE.Clock();
         this.animate = this.animate.bind(this);
         requestAnimationFrame(this.animate);
@@ -476,22 +352,14 @@ class Simulation {
 
     initWebGL() {
         this.scene = new THREE.Scene();
-        // Transparent WebGL background allows CSS purple gradient to show through
-        this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-        this.camera.position.set(0, 50, 50);
-
+        this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2000);
+        
         this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setClearColor(0x000000, 0); 
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         
         document.getElementById('webgl-container').appendChild(this.renderer.domElement);
-
-        window.addEventListener('resize', () => {
-            this.camera.aspect = window.innerWidth / window.innerHeight;
-            this.camera.updateProjectionMatrix();
-            this.renderer.setSize(window.innerWidth, window.innerHeight);
-        });
     }
 
     setupInputs() {
@@ -506,84 +374,95 @@ class Simulation {
             raycaster.ray.intersectPlane(plane, this.targetPos);
         };
 
-        window.addEventListener('pointerdown', (e) => { 
-            // Audio starts on first click
-            const audio = document.getElementById("backgroundMusic");
-            if (audio && audio.paused) audio.play().catch(()=>{});
-            
-            if(this.player.isGameOver) return;
-            this.isPointerDown = true; updateTarget(e); 
-        });
+        window.addEventListener('pointerdown', (e) => { this.isPointerDown = true; updateTarget(e); });
         window.addEventListener('pointermove', (e) => { if(this.isPointerDown) updateTarget(e); });
         window.addEventListener('pointerup', () => { this.isPointerDown = false; });
     }
 
-    checkGameProgression() {
-        if(this.player.isGameOver) return;
+    maintainEcosystem() {
+        // Keep a steady population of entities around the player
+        const maxEntities = 80;
+        while(this.entities.length < maxEntities) {
+            this.entities.push(new Entity(this.scene, this.player.mass));
+        }
+    }
 
-        // Evolution Design Trigger (Hoard Energy)
-        if (!this.evoAvailable && this.player.energy > 900) {
-            this.evoAvailable = true;
-            this.ui.showEvolutionPanel(this.player.traits.id, (selectedEvo) => {
-                this.player.evolve(selectedEvo);
-                this.ecosystem.rebalance(selectedEvo); // Adapt ecosystem immediately
-                this.evoAvailable = false;
-                this.level++;
-            });
+    checkCollisions() {
+        if(this.player.isDead) return;
+        
+        const pRadius = Math.pow(this.player.mass, 0.5);
+        const sizeAdvantage = this.player.traits.name === 'Predatory Maw' ? 1.05 : 1.0;
+        const armorAdvantage = this.player.traits.name === 'Chitinous Shell' ? 1.2 : 1.0;
+
+        for (let i = this.entities.length - 1; i >= 0; i--) {
+            const e = this.entities[i];
+            const dist = this.player.mesh.position.distanceTo(e.mesh.position);
+            
+            if (dist < pRadius + e.radius) {
+                if (this.player.mass * sizeAdvantage > e.mass) {
+                    // Consume
+                    this.player.grow(e.mass);
+                    e.destroy();
+                    this.entities.splice(i, 1);
+                } else {
+                    // Attacked
+                    if (e.mass < this.player.mass * armorAdvantage) {
+                        // Armor saves you, bounce away (lose a tiny bit of mass)
+                        this.player.mass = Math.max(1, this.player.mass - 0.1);
+                        e.velocity.multiplyScalar(-1); 
+                    } else {
+                        // Death
+                        this.player.isDead = true;
+                        this.ui.showGameOver();
+                    }
+                }
+            }
         }
     }
 
     animate() {
         requestAnimationFrame(this.animate);
+        if(this.isPaused) return;
+
         const dt = this.clock.getDelta();
         const time = performance.now() * 0.001;
 
-        if (this.player.isGameOver) {
-            this.ui.showGameOver();
-            return;
-        }
-
-        // Pointer Movement
-        let moving = false;
-        if (this.isPointerDown) {
-            const dir = new THREE.Vector3().subVectors(this.targetPos, this.player.mesh.position);
-            dir.y = 0; 
-            if (dir.length() > 0.5) {
-                moving = true;
-                dir.normalize();
-                const speed = this.player.traits.stats.speed;
-                this.player.mesh.position.add(dir.multiplyScalar(speed * dt));
+        if(!this.player.isDead) {
+            // Target follows pointer, or player coasts if released
+            if(!this.isPointerDown) {
+                 const dir = new THREE.Vector3().subVectors(this.targetPos, this.player.mesh.position).normalize();
+                 this.targetPos.copy(this.player.mesh.position).add(dir.multiplyScalar(0.1));
+            }
+            this.player.update(dt, this.targetPos);
+            
+            // Check Evolution Trigger
+            if (this.player.mass >= this.player.nextEvoMass && !this.evoReady) {
+                this.evoReady = true;
+                this.ui.toggleEvoTrigger(true);
             }
         }
 
-        // Update Systems
-        this.player.update(dt, time, moving);
-        this.ecosystem.update(dt, time, this.player);
-        this.checkGameProgression();
+        this.maintainEcosystem();
+        this.entities.forEach(e => e.update(dt, time, this.player));
+        this.checkCollisions();
 
-        // UI & 2D FX
+        // UI & Camera updates
         this.ui.updateHUD(this.player);
-        this.ui.drawRadar(this.player, this.ecosystem);
         
-        // Parallax depth based on evolution scale
-        const zoomFX = 5.0 / this.player.traits.stats.playerRadius; 
-        this.ui.drawTesseract(this.player.mesh.position, zoomFX);
-
-        // Visual design: Camera changes based on form (Alien zooms out, Hybrid close)
-        let camHeight = 50;
-        if(this.player.state === 'alien') camHeight = 70;
-        if(this.player.state === 'hybrid') camHeight = 35;
-        
-        this.camera.position.x += (this.player.mesh.position.x - this.camera.position.x) * 0.05;
-        this.camera.position.z += (this.player.mesh.position.z + camHeight - this.camera.position.z) * 0.05;
-        this.camera.position.y += (camHeight - this.camera.position.y) * 0.02;
+        // Camera zooms out dynamically based on player mass
+        const targetCamY = 30 * Math.pow(this.player.mass, 0.4);
+        this.camera.position.x += (this.player.mesh.position.x - this.camera.position.x) * 0.1;
+        this.camera.position.z += (this.player.mesh.position.z + targetCamY*0.5 - this.camera.position.z) * 0.1;
+        this.camera.position.y += (targetCamY - this.camera.position.y) * 0.05;
         this.camera.lookAt(this.player.mesh.position);
+
+        this.ui.drawGrid(this.player.mesh.position, this.camera.position.y);
 
         this.renderer.render(this.scene, this.camera);
     }
 }
 
-// Reinitialize simulation
+// Boot
 window.onload = () => { const sim = new Simulation(); };
 </script>
 </body>
